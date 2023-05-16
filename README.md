@@ -42,6 +42,9 @@ cd examples/calcbot
 python3 calcbot.py --client_id "put-your-client-id-here" --client_secret "put-your-client-secret-here"
 ```
 
+测试效果：
+![calcbot](https://s1.ax1x.com/2023/05/16/p92jjIJ.png)
+
 ### 事件订阅切换到 Stream 模式（可选）
 
 进入钉钉开发者后台，选择企业内部应用，在应用管理的左侧导航中，选择“事件与回调”。
