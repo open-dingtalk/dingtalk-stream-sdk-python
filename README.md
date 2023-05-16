@@ -30,6 +30,8 @@ pip3 install dingtalk-stream
 
 如果不需要使用机器人功能的话，可以不用创建。
 
+在应用管理的左侧导航中，选择“消息推送”，打开机器人能力，设置机器人基本信息。
+
 注意：消息接收模式中，选择 “Stream 模式”
 
 ![Stream 模式](https://img.alicdn.com/imgextra/i3/O1CN01XL4piO1lkYX2F6sW6_!!6000000004857-0-tps-896-522.jpg)
