@@ -1,0 +1,28 @@
+name: Build and Publish Package (for chzealot)
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Check Commit Message
+        run: |
+          if [[ $(git log -1 --pretty='format:%B' ${{ github.sha }}) == *"release"* ]] && [[ "${{ github.repository_owner }}" == "chzealot" ]]; then
+            echo "::set-output name=build_package::true"
+          else
+            echo "::set-output name=build_package::false"
+          fi
+      - name: Build Package
+        if: steps.check_commit_message.outputs.build_package == 'true'
+        run: |
+          python setup.py sdist bdist_wheel
+      - name: Publish Package
+        if: steps.check_commit_message.outputs.build_package == 'true'
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
