@@ -22,10 +22,20 @@ jobs:
       - name: Build Package
         if: ${{ steps.check_commit_message.outputs.build_package }} == 'true'
         run: |
+          VERSION=$(python setup.py --version)
           python setup.py sdist bdist_wheel
+          echo $VERSION > VERSION
       - name: Publish Package
         if: ${{ steps.check_commit_message.outputs.build_package }} == 'true'
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Tag this Commit
+        if: github.ref == 'refs/heads/master' && ${{ steps.check_commit_message.outputs.build_package }} == 'true'
+        run: |
+          git config --global user.email "${{ github.event.pusher.email }}"
+          git config --global user.name "GitHub Action Bot"
+          export VERSION="$(cat VERSION)"
+          git tag v$VERSION
+          git push --tags
