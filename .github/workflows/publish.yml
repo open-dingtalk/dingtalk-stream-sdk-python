@@ -12,9 +12,9 @@ jobs:
       - name: Check Commit Message
         run: |
           if [[ $(git log -1 --pretty='format:%B' ${{ github.sha }}) == *"release"* ]] && [[ "${{ github.repository_owner }}" == "chzealot" ]]; then
-            echo "::set-output name=build_package::true"
+            echo "build_package=true" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=build_package::false"
+            echo "build_package=false" >> $GITHUB_OUTPUT
           fi
       - name: Build Package
         if: steps.check_commit_message.outputs.build_package == 'true'
