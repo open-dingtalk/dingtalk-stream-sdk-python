@@ -1,8 +1,20 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 
 import argparse
+import logging
 from dingtalk_stream import AckMessage
 import dingtalk_stream
+print(dingtalk_stream.__file__)
+
+
+def setup_logger():
+    logger = logging.getLogger()
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter('%(asctime)s %(name)-8s %(levelname)-8s %(message)s [%(filename)s:%(lineno)d]'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
 
 def define_options():
@@ -20,6 +32,11 @@ def define_options():
 
 
 class CalcBotHandler(dingtalk_stream.ChatbotHandler):
+    def __init__(self, logger: logging.Logger = None):
+        super(dingtalk_stream.ChatbotHandler, self).__init__()
+        if logger:
+            self.logger = logger
+
     async def process(self, callback: dingtalk_stream.CallbackMessage):
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
         expression = incoming_message.text.content.strip()
@@ -34,11 +51,12 @@ class CalcBotHandler(dingtalk_stream.ChatbotHandler):
 
 
 def main():
+    logger = setup_logger()
     options = define_options()
 
     credential = dingtalk_stream.Credential(options.client_id, options.client_secret)
     client = dingtalk_stream.DingTalkStreamClient(credential)
-    client.register_callback_hanlder(dingtalk_stream.ChatbotMessage.TOPIC, CalcBotHandler())
+    client.register_callback_hanlder(dingtalk_stream.chatbot.ChatbotMessage.TOPIC, CalcBotHandler(logger))
     client.start_forever()
 
 

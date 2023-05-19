@@ -5,12 +5,13 @@ from .frames import AckMessage
 from .frames import SystemMessage
 from .frames import EventMessage
 from .frames import CallbackMessage
+from .log import setup_default_logger
 
 
 class CallbackHandler(object):
     def __init__(self):
         self.dingtalk_client = None
-        self.logger = logging.getLogger('dingtalk_stream.handler')
+        self.logger = setup_default_logger('dingtalk_stream.handler')
     
     def pre_start(self):
         return
@@ -32,7 +33,7 @@ class CallbackHandler(object):
 class EventHandler(object):
     def __init__(self):
         self.dingtalk_client = None
-        self.logger = logging.getLogger('dingtalk_stream.handler')
+        self.logger = setup_default_logger('dingtalk_stream.handler')
 
     def pre_start(self):
         return
@@ -54,7 +55,7 @@ class EventHandler(object):
 class SystemHandler(object):
     def __init__(self):
         self.dingtalk_client = None
-        self.logger = logging.getLogger('dingtalk_stream.handler')
+        self.logger = setup_default_logger('dingtalk_stream.handler')
 
     def pre_start(self):
         return
