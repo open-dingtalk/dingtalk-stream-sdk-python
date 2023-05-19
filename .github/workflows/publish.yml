@@ -18,13 +18,13 @@ jobs:
           fi
       - name: Debug Github Output
         run: |
-          echo steps.check_commit_message.outputs.build_package
+          echo ${{ steps.check_commit_message.outputs.build_package }}
       - name: Build Package
-        if: steps.check_commit_message.outputs.build_package == 'true'
+        if: ${{ steps.check_commit_message.outputs.build_package }} == 'true'
         run: |
           python setup.py sdist bdist_wheel
       - name: Publish Package
-        if: steps.check_commit_message.outputs.build_package == 'true'
+        if: ${{ steps.check_commit_message.outputs.build_package }} == 'true'
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
