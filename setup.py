@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='dingtalk-stream',
-    version='0.1.0',
+    version='0.1.1',
     description='A Python package for sending messages to DingTalk chatbot',
     url='https://github.com/open-dingtalk/dingtalk-stream-sdk-python',
     author='Ke Jie',
