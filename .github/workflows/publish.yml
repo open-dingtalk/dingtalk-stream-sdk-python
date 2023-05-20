@@ -1,0 +1,41 @@
+name: Build and Publish Package (for chzealot)
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Check Commit Message
+        id: check_commit_message
+        run: |
+          VERSION=$(python setup.py --version)
+          echo "version=$(python setup.py --version)" >> $GITHUB_OUTPUT
+          if [[ $(git log -1 --pretty='format:%B' ${{ github.sha }}) == *"release"* ]] && [[ "${{ github.repository_owner }}" == "open-dingtalk" ]]; then
+            echo "build_package=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_package=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Debug Github Output
+        run: |
+          echo ${{ steps.check_commit_message.outputs.build_package }}
+      - name: Build Package
+        if: ${{ steps.check_commit_message.outputs.build_package }} == 'true'
+        run: |
+          python setup.py sdist bdist_wheel
+      - name: Publish Package
+        if: ${{ steps.check_commit_message.outputs.build_package }} == 'true'
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Tag this Commit
+        id: tag_version
+        if: github.ref == 'refs/heads/master' && ${{ steps.check_commit_message.outputs.build_package }} == 'true'
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          custom_tag: ${{ steps.check_commit_message.outputs.version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}

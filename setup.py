@@ -2,8 +2,10 @@ from setuptools import setup
 
 setup(
     name='dingtalk-stream',
-    version='0.1.0',
-    description='A Python package for sending messages to DingTalk chatbot',
+    version='0.1.12',
+    description='A Python library for sending messages to DingTalk chatbot',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     url='https://github.com/open-dingtalk/dingtalk-stream-sdk-python',
     author='Ke Jie',
     author_email='jinxi.kj@alibaba-inc.com',

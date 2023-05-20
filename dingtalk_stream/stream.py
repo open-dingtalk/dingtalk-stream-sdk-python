@@ -20,6 +20,7 @@ from .handlers import SystemHandler
 from .frames import SystemMessage
 from .frames import EventMessage
 from .frames import CallbackMessage
+from .log import setup_default_logger
 
 
 class DingTalkStreamClient(object):
@@ -32,13 +33,15 @@ class DingTalkStreamClient(object):
         self.callback_handler_map = {}
         self.system_handler: SystemHandler = SystemHandler()
         self.websocket = None  # create websocket client after connected
-        self.logger: logging.Logger = logger if logger else logging.getLogger('dingtalk_stream.client')
+        self.logger: logging.Logger = logger if logger else setup_default_logger('dingtalk_stream.client')
         self._pre_started = False
+        self._is_event_required = False
         self._access_token = {}
 
     def register_all_event_handler(self, handler: EventHandler):
         handler.dingtalk_client = self
         self.event_handler = handler
+        self._is_event_required = True
 
     def register_callback_hanlder(self, topic, handler: CallbackHandler):
         handler.dingtalk_client = self
@@ -58,10 +61,12 @@ class DingTalkStreamClient(object):
 
         while True:
             connection = self.open_connection()
-            self.logger.info('endpoint is %s', connection)
+
             if not connection:
+                self.logger.error('open connection failed')
                 time.sleep(10)
                 continue
+            self.logger.info('endpoint is %s', connection)
 
             uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
             async with websockets.connect(uri) as websocket:
@@ -85,6 +90,8 @@ class DingTalkStreamClient(object):
             ack = await self.system_handler.raw_process(msg)
             if msg.headers.topic == SystemMessage.TOPIC_DISCONNECT:
                 result = DingTalkStreamClient.TAG_DISCONNECT
+            else:
+                self.logger.warning("unknown message topic, topic=%s, message=%s", msg.headers.topic, json_message)
         elif msg_type == EventMessage.TYPE:
             msg = EventMessage.from_dict(json_message)
             ack = await self.event_handler.raw_process(msg)
@@ -93,8 +100,10 @@ class DingTalkStreamClient(object):
             handler = self.callback_handler_map.get(msg.headers.topic)
             if handler:
                 ack = await handler.raw_process(msg)
+            else:
+                self.logger.warning("unknown callback message topic, topic=%s, message=%s", msg.headers.topic, json_message)
         else:
-            self.logger.warn('unknown message, content=%s', json_message)
+            self.logger.warning('unknown message, content=%s', json_message)
         if ack:
             await self.websocket.send(json.dumps(ack.to_dict()))
         return result
@@ -109,8 +118,8 @@ class DingTalkStreamClient(object):
                 time.sleep(10)
                 continue
             except Exception as e:
-              time.sleep(3)
-              self.logger.error('unknown exception, error=%s', e)
+                time.sleep(3)
+                self.logger.exception('unknown exception', e)
             finally:
                 continue
 
@@ -123,9 +132,15 @@ class DingTalkStreamClient(object):
                            '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
                            ) % platform.python_version(),
         }
+        topics = []
+        if self._is_event_required:
+            topics.append({'type': 'EVENT', 'topic': '*'})
+        for topic in self.callback_handler_map.keys():
+            topics.append({'type': 'CALLBACK', 'topic': topic})
         request_body = json.dumps({
             'clientId': self.credential.client_id,
             'clientSecret': self.credential.client_secret,
+            'subscriptions': topics,
         }).encode('utf-8')
 
         try:
