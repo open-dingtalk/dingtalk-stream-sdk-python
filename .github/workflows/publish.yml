@@ -10,9 +10,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Check Commit Message
+        id: check_commit_message
         run: |
           VERSION=$(python setup.py --version)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$(python setup.py --version)" >> $GITHUB_OUTPUT
           if [[ $(git log -1 --pretty='format:%B' ${{ github.sha }}) == *"release"* ]] && [[ "${{ github.repository_owner }}" == "chzealot" ]]; then
             echo "build_package=true" >> $GITHUB_OUTPUT
           else
@@ -36,5 +37,5 @@ jobs:
         if: github.ref == 'refs/heads/master' && ${{ steps.check_commit_message.outputs.build_package }} == 'true'
         uses: mathieudutour/github-tag-action@v6.1
         with:
-          custom_tag: "${{ steps.check_commit_message.outputs.version }}"
+          custom_tag: ${{ steps.check_commit_message.outputs.version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
