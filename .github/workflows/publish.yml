@@ -33,9 +33,13 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
       - name: Tag this Commit
         if: github.ref == 'refs/heads/master' && ${{ steps.check_commit_message.outputs.build_package }} == 'true'
-        run: |
-          git config --global user.email "${{ github.event.pusher.email }}"
-          git config --global user.name "GitHub Action Bot"
-          export VERSION="$(cat VERSION)"
-          git tag v$VERSION
-          git push --tags
+        uses: mathieudutour/github-tag-action@v5.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ steps.get_version.outputs.version }}
+          tag_prefix: ''
+          release_branches: main
+          default_bump: false
+          create_annotated_tag: true
+          user_name: "GitHub Action Bot"
+          user_email: ${{ github.event.pusher.email }}
