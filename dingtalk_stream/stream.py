@@ -118,8 +118,8 @@ class DingTalkStreamClient(object):
                 time.sleep(10)
                 continue
             except Exception as e:
-              time.sleep(3)
-              self.logger.error('unknown exception, error=%s', e)
+                time.sleep(3)
+                self.logger.exception('unknown exception', e)
             finally:
                 continue
 

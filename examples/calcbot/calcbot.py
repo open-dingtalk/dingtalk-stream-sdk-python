@@ -4,7 +4,6 @@ import argparse
 import logging
 from dingtalk_stream import AckMessage
 import dingtalk_stream
-print(dingtalk_stream.__file__)
 
 
 def setup_logger():
@@ -44,9 +43,9 @@ class CalcBotHandler(dingtalk_stream.ChatbotHandler):
             result = eval(expression)
         except Exception as e:
             result = 'Error: %s' % e
-        print('%s = %s' % (expression, result))
+        self.logger.info('%s = %s' % (expression, result))
         response = 'Q: %s\nA: %s' % (expression, result)
-        await self.reply_text(response, incoming_message)
+        self.reply_text(response, incoming_message)
         return AckMessage.STATUS_OK, 'OK'
 
 
