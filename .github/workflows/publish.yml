@@ -14,7 +14,7 @@ jobs:
         run: |
           VERSION=$(python setup.py --version)
           echo "version=$(python setup.py --version)" >> $GITHUB_OUTPUT
-          if [[ $(git log -1 --pretty='format:%B' ${{ github.sha }}) == *"release"* ]] && [[ "${{ github.repository_owner }}" == "chzealot" ]]; then
+          if [[ $(git log -1 --pretty='format:%B' ${{ github.sha }}) == *"release"* ]] && [[ "${{ github.repository_owner }}" == "open-dingtalk" ]]; then
             echo "build_package=true" >> $GITHUB_OUTPUT
           else
             echo "build_package=false" >> $GITHUB_OUTPUT
