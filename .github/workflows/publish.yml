@@ -36,5 +36,5 @@ jobs:
         if: github.ref == 'refs/heads/master' && ${{ steps.check_commit_message.outputs.build_package }} == 'true'
         uses: mathieudutour/github-tag-action@v6.1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           custom_tag: ${{ steps.check_commit_message.outputs.version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
