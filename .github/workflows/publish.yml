@@ -1,4 +1,4 @@
-name: Build and Publish Package (for chzealot)
+name: Build and Publish Package (for open-dingtalk)
 on:
   push:
     branches:
