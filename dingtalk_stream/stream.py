@@ -147,9 +147,10 @@ class DingTalkStreamClient(object):
             response = requests.post(DingTalkStreamClient.OPEN_CONNECTION_API,
                                      headers=request_headers,
                                      data=request_body)
+            http_body = response.json()
             response.raise_for_status()
         except Exception as e:
-            self.logger.error("open connection failed, error=%s", e)
+            self.logger.error("open connection failed, error=%s, response.body=%s", e, http_body)
             return None
         return response.json()
 
