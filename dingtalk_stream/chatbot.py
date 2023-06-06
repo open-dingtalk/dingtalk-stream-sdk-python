@@ -1,6 +1,10 @@
+# -*- coding:utf-8 -*-
+
 import json
-import urllib
+import uuid
 import requests
+import platform
+import hashlib
 from .stream import CallbackHandler
 
 
@@ -186,9 +190,10 @@ class ChatbotMessage(object):
 
 
 class ChatbotHandler(CallbackHandler):
+
     def reply_text(self,
-                         text: str,
-                         incoming_message: ChatbotMessage):
+                   text: str,
+                   incoming_message: ChatbotMessage):
         request_headers = {
             'Content-Type': 'application/json',
             'Accept': '*/*',
@@ -239,3 +244,111 @@ class ChatbotHandler(CallbackHandler):
             self.logger.error('reply markdown failed, error=%s', e)
             return None
         return response.json()
+
+    def reply_card(self,
+                   card_data: dict,
+                   incoming_message: ChatbotMessage,
+                   at_all: bool) -> str:
+        """
+        回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
+        https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
+        :param card_data: 卡片数据内容，interactive_card.py中有一些简单的样例，高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
+        :param at_all: 是否at所有人
+        :param incoming_message: 回调数据源
+        :return:
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error(
+                'simple_reply_interactive_card_only_for_inner_app failed, cannot get dingtalk access token')
+            return None
+
+        request_headers = {
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+            'x-acs-dingtalk-access-token': access_token,
+            'User-Agent': ('DingTalkStream/1.0 SDK/0.1.0 Python/%s '
+                           '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
+                           ) % platform.python_version(),
+        }
+
+        body = {"cardTemplateId": "StandardCard",
+                "robotCode": self.dingtalk_client.credential.client_id,
+                "cardData": json.dumps(card_data),
+                "sendOptions": {
+                    # "atUserListJson": "String",
+                    # "atAll": at_all,
+                    # "receiverListJson": "String",
+                    # "cardPropertyJson": "String"
+                },
+                "cardBizId": self._gen_card_id(incoming_message)
+                }
+
+        if incoming_message.conversation_type == '2':
+            body["openConversationId"] = incoming_message.conversation_id
+        elif incoming_message.conversation_type == '1':
+            single_chat_receiver = {
+                "userId": incoming_message.sender_staff_id
+            }
+            body["singleChatReceiver"] = json.dumps(single_chat_receiver)
+
+        if at_all:
+            body["sendOptions"]["atAll"] = True
+        else:
+            body["sendOptions"]["atAll"] = False
+
+        url = 'https://api.dingtalk.com/v1.0/im/v1.0/robot/interactiveCards/send'
+        try:
+            response = requests.post(url,
+                                     headers=request_headers,
+                                     json=body)
+            response.raise_for_status()
+
+            return response.json
+        except Exception as e:
+            return {}
+
+    def update_card(self, card_data: dict, incoming_message: ChatbotMessage):
+        """
+        回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
+        https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
+        :param card_data: 卡片数据内容，interactive_card.py中有一些简单的样例，高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
+        :param incoming_message: 回调数据源，主要是为了取到card_biz_id
+        :return:
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error('update_card failed, cannot get dingtalk access token')
+            return None
+
+        request_headers = {
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+            'x-acs-dingtalk-access-token': access_token,
+            'User-Agent': ('DingTalkStream/1.0 SDK/0.1.0 Python/%s '
+                           '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
+                           ) % platform.python_version(),
+        }
+
+        card_id = self._gen_card_id(incoming_message)
+        values = {
+            'cardBizId': card_id,
+            'cardData': json.dumps(card_data),
+        }
+        url = 'https://api.dingtalk.com/v1.0/im/robots/interactiveCards'
+        try:
+            response = requests.put(url,
+                                    headers=request_headers,
+                                    data=json.dumps(values))
+            response.raise_for_status()
+        except Exception as e:
+            self.logger.error('update card failed, error=%s, response=%s', e, response.text)
+            return response.status_code
+        return response.json()
+
+    @staticmethod
+    def _gen_card_id(msg: ChatbotMessage):
+        factor = '%s_%s_%s_%s' % (msg.sender_id, msg.sender_corp_id, msg.conversation_id, msg.message_id)
+        m = hashlib.sha256()
+        m.update(factor.encode('utf-8'))
+        return m.hexdigest()
