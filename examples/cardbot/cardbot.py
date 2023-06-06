@@ -11,6 +11,7 @@ import logging
 from dingtalk_stream import AckMessage, interactive_card
 import dingtalk_stream
 import time
+import copy
 
 
 def setup_logger():
@@ -51,13 +52,15 @@ class CardBotHandler(dingtalk_stream.ChatbotHandler):
     async def process(self, callback: dingtalk_stream.CallbackMessage):
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
 
+        card_data = copy.deepcopy(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1)
+
         # 先回复一个卡片
-        self.reply_card(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1,
+        self.reply_card(card_data,
                         incoming_message, False)
 
         time.sleep(1)
 
-        card_data = interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1.copy()
+        card_data = copy.deepcopy(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1)
 
         # 更新文本
         card_data["contents"][0]["text"] = "钉钉，让进步发生！\n 更新时间：{tt}".format(
