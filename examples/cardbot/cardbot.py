@@ -52,8 +52,8 @@ class CardBotHandler(dingtalk_stream.ChatbotHandler):
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
 
         # 先回复一个卡片
-        self.simple_reply_interactive_card_only_for_inner_app(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1, False,
-                                                              incoming_message)
+        self.reply_card(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1,
+                        incoming_message, False)
 
         time.sleep(1)
 

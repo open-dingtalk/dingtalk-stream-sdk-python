@@ -245,10 +245,10 @@ class ChatbotHandler(CallbackHandler):
             return None
         return response.json()
 
-    def simple_reply_interactive_card_only_for_inner_app(self,
-                                                         card_data: dict,
-                                                         at_all: bool,
-                                                         incoming_message: ChatbotMessage) -> str:
+    def reply_card(self,
+                   card_data: dict,
+                   incoming_message: ChatbotMessage,
+                   at_all: bool) -> str:
         """
         回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
         https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
