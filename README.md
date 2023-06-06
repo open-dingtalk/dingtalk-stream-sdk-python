@@ -38,6 +38,12 @@ pip3 install dingtalk-stream
 
 点击“点击调试”按钮，可以创建测试群进行测试。
 
+项目中提供了两个关于机器人的测试案例：
+
+3.1 CalcBot
+
+将用户输入的内容进行数学表达式计算，并以文本消息的方式返回计算结果。
+
 启动服务：
 ```Shell
 cd examples/calcbot
@@ -46,6 +52,21 @@ python3 calcbot.py --client_id "put-your-client-id-here" --client_secret "put-yo
 
 测试效果：
 ![calcbot](https://s1.ax1x.com/2023/05/16/p92jjIJ.png)
+
+3.2 CardBot
+
+接收用户输入，返回一张互动卡片，随后更新卡片的文本和图片内容。
+
+启动服务：
+```Shell
+cd examples/cardbot
+python3 cardbot.py --client_id "put-your-client-id-here" --client_secret "put-your-client-secret-here"
+```
+
+测试效果：
+![cardbot](https://img.alicdn.com/imgextra/i2/O1CN012Va01a24FOHrQQnWy_!!6000000007361-0-tps-2184-1296.jpg)
+
+
 
 ### 事件订阅切换到 Stream 模式（可选）
 
