@@ -11,7 +11,7 @@ import logging
 from dingtalk_stream import AckMessage, interactive_card
 import dingtalk_stream
 import time
-import copy
+import copy, asyncio
 
 
 def setup_logger():
@@ -38,45 +38,66 @@ def define_options():
     return options
 
 
-class CardBotHandler(dingtalk_stream.ChatbotHandler):
+class CardBotHandler(dingtalk_stream.AsyncChatbotHandler):
     """
     接收回调消息。
     回复一个卡片，然后更新卡片的文本和图片。
     """
 
-    def __init__(self, logger: logging.Logger = None):
-        super(dingtalk_stream.ChatbotHandler, self).__init__()
+    def __init__(self, logger: logging.Logger = None, max_workers: int = 8):
+        super(CardBotHandler, self).__init__(max_workers=max_workers)
         if logger:
             self.logger = logger
 
-    async def process(self, callback: dingtalk_stream.CallbackMessage):
+    def process(self, callback: dingtalk_stream.CallbackMessage):
+        '''
+        多线程场景，process函数不要用 async 修饰
+        :param message:
+        :return:
+        '''
+
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
 
-        card_data = copy.deepcopy(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1)
+        texts = [
+            "第一行文本"
+        ]
 
-        # 先回复一个卡片
-        self.reply_card(card_data,
-                        incoming_message, False)
+        # 先回复一个文本卡片
+        self.reply_card(
+            interactive_card.generate_multi_text_line_card_data(title="机器人名字", logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
+                                                                texts=texts),
+            incoming_message, False)
 
-        time.sleep(1)
+        images = [
+            "@lADPDe7s2ySi18PNA6XNBXg",
+            "@lADPDf0i1beuNF3NAxTNBXg",
+            "@lADPDe7s2ySRnIvNA6fNBXg"
+        ]
 
-        card_data = copy.deepcopy(interactive_card.INTERACTIVE_CARD_JSON_SAMPLE_1)
+        # 再回复一个文本+图片卡片
+        card_biz_id = self.reply_card(
+            interactive_card.generate_multi_text_image_card_data(title="机器人名字", logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
+                                                                 texts=texts, images=images),
+            incoming_message, False)
 
-        # 更新文本
-        card_data["contents"][0]["text"] = "钉钉，让进步发生！\n 更新时间：{tt}".format(
-            tt=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+        # 再试试更新卡片
+        time.sleep(3)
 
         # 上传图片
         media_id = self.dingtalk_client.upload_to_dingtalk(open('./img.png', 'rb'),
                                                            filetype='image',
                                                            filename='image.png',
                                                            mimetype='image/png')
-        # 更新图片
-        card_data["contents"][1]["image"] = media_id
 
-        # 更新卡片
-        self.update_card(card_data,
-                         incoming_message)
+        texts = [
+            "更新后的第一行文本",
+            "更新后的第二行文本"
+        ]
+
+        self.update_card(card_biz_id, interactive_card.generate_multi_text_image_card_data(title="机器人名字",
+                                                                                           logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
+                                                                                           texts=texts,
+                                                                                           images=[media_id]))
 
         return AckMessage.STATUS_OK, 'OK'
 

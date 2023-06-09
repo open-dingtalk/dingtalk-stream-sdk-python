@@ -10,4 +10,4 @@ from .frames import AckMessage
 from .chatbot import ChatbotMessage
 from .chatbot import TextContent
 from .chatbot import AtUser
-from .chatbot import ChatbotHandler
+from .chatbot import ChatbotHandler, AsyncChatbotHandler

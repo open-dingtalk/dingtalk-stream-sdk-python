@@ -1,11 +1,13 @@
 # -*- coding:utf-8 -*-
 
 import json
-import uuid
 import requests
 import platform
 import hashlib
-from .stream import CallbackHandler
+from .stream import CallbackHandler, CallbackMessage
+from .frames import AckMessage, Headers
+from concurrent.futures import ThreadPoolExecutor
+import uuid
 
 
 class AtUser(object):
@@ -272,6 +274,7 @@ class ChatbotHandler(CallbackHandler):
                            ) % platform.python_version(),
         }
 
+        card_biz_id = self._gen_card_id(incoming_message)
         body = {"cardTemplateId": "StandardCard",
                 "robotCode": self.dingtalk_client.credential.client_id,
                 "cardData": json.dumps(card_data),
@@ -281,7 +284,7 @@ class ChatbotHandler(CallbackHandler):
                     # "receiverListJson": "String",
                     # "cardPropertyJson": "String"
                 },
-                "cardBizId": self._gen_card_id(incoming_message)
+                "cardBizId": card_biz_id
                 }
 
         if incoming_message.conversation_type == '2':
@@ -304,11 +307,12 @@ class ChatbotHandler(CallbackHandler):
                                      json=body)
             response.raise_for_status()
 
-            return response.json
+            return card_biz_id
         except Exception as e:
-            return {}
+            self.logger.error('reply card failed, error=%s', e)
+            return ""
 
-    def update_card(self, card_data: dict, incoming_message: ChatbotMessage):
+    def update_card(self, card_biz_id: str, card_data: dict):
         """
         回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
         https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
@@ -330,9 +334,8 @@ class ChatbotHandler(CallbackHandler):
                            ) % platform.python_version(),
         }
 
-        card_id = self._gen_card_id(incoming_message)
         values = {
-            'cardBizId': card_id,
+            'cardBizId': card_biz_id,
             'cardData': json.dumps(card_data),
         }
         url = 'https://api.dingtalk.com/v1.0/im/robots/interactiveCards'
@@ -348,7 +351,45 @@ class ChatbotHandler(CallbackHandler):
 
     @staticmethod
     def _gen_card_id(msg: ChatbotMessage):
-        factor = '%s_%s_%s_%s' % (msg.sender_id, msg.sender_corp_id, msg.conversation_id, msg.message_id)
+        factor = '%s_%s_%s_%s_%s' % (
+            msg.sender_id, msg.sender_corp_id, msg.conversation_id, msg.message_id, str(uuid.uuid1()))
         m = hashlib.sha256()
         m.update(factor.encode('utf-8'))
         return m.hexdigest()
+
+
+class AsyncChatbotHandler(ChatbotHandler):
+    """
+    多任务执行handler，注意：process函数重载的时候不要用 async
+    """
+
+    async_executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=8)
+
+    def __init__(self, max_workers: int = 8):
+        super(AsyncChatbotHandler, self).__init__()
+        self.async_executor = ThreadPoolExecutor(max_workers=max_workers)
+
+    def process(self, message):
+        '''
+        不要用 async 修饰
+        :param message:
+        :return:
+        '''
+        return AckMessage.STATUS_NOT_IMPLEMENT, 'not implement'
+
+    async def raw_process(self, callback_message: CallbackMessage):
+        def func():
+            try:
+                self.process(callback_message)
+            except Exception as e:
+                self.logger.error('async process exception, error=%s', e)
+
+        self.async_executor.submit(func)
+
+        ack_message = AckMessage()
+        ack_message.code = AckMessage.STATUS_OK
+        ack_message.headers.message_id = callback_message.headers.message_id
+        ack_message.headers.content_type = Headers.CONTENT_TYPE_APPLICATION_JSON
+        ack_message.message = "ok"
+        ack_message.data = callback_message.data
+        return ack_message

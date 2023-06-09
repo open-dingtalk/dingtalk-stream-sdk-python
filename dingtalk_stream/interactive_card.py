@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 
+import copy, uuid
+
 """
 这里是卡片模板库，提供一些必要的卡片组件组合。
 INTERACTIVE_CARD_JSON_SAMPLE_1 极简卡片组合：title-text-image-button
@@ -7,6 +9,132 @@ INTERACTIVE_CARD_JSON_SAMPLE_2 较丰富的组件卡片，title-text-image-secti
 INTERACTIVE_CARD_JSON_SAMPLE_3 较丰富的组件卡片，title-image-markdown-button
 高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
 """
+
+'''
+实用卡片模板：多行文本
+'''
+INTERACTIVE_CARD_JSON_SAMPLE_MULTI_TEXT_LINE = {
+    "config": {
+        "autoLayout": True,
+        "enableForward": True
+    },
+    "header": {
+        "title": {
+            "type": "text",
+            "text": "钉钉卡片"
+        },
+        "logo": "@lALPDfJ6V_FPDmvNAfTNAfQ"
+    },
+    "contents": [
+        {
+            "type": "text",
+            "text": "钉钉正在为各行各业提供专业解决方案，沉淀钉钉1900万企业组织核心业务场景，提供专属钉钉、教育、医疗、新零售等多行业多维度的解决方案。",
+            "id": "text_1686281949314"
+        },
+        {
+            "type": "divider",
+            "id": "divider_1686281949314"
+        }
+    ]
+}
+
+
+def generate_multi_text_line_card_data(title: str, logo: str, texts: [str]) -> dict:
+    card_data = copy.deepcopy(INTERACTIVE_CARD_JSON_SAMPLE_MULTI_TEXT_LINE)
+
+    if title != "":
+        card_data["header"]["title"]["text"] = title
+
+    if logo != "":
+        card_data["header"]["logo"] = logo
+
+    card_data["contents"] = []
+    for text in texts:
+        text_line = {
+            "type": "text",
+            "text": text,
+            "id": "text_" + str(uuid.uuid1())
+        }
+        divider_line = {
+            "type": "divider",
+            "id": "divider_" + str(uuid.uuid1())
+        }
+        card_data["contents"].append(text_line)
+        card_data["contents"].append(divider_line)
+
+    return card_data
+
+
+'''
+实用卡片模板，多行文本+多图组合
+'''
+INTERACTIVE_CARD_JSON_SAMPLE_MULTI_TEXT_IMAGE = {
+    "config": {
+        "autoLayout": True,
+        "enableForward": True
+    },
+    "header": {
+        "title": {
+            "type": "text",
+            "text": "钉钉卡片"
+        },
+        "logo": "@lALPDfJ6V_FPDmvNAfTNAfQ"
+    },
+    "contents": [
+        {
+            "type": "text",
+            "text": "钉钉正在为各行各业提供专业解决方案，沉淀钉钉1900万企业组织核心业务场景，提供专属钉钉、教育、医疗、新零售等多行业多维度的解决方案。",
+            "id": "text_1686281949314"
+        },
+        {
+            "type": "divider",
+            "id": "divider_1686281949314"
+        },
+        {
+            "type": "imageList",
+            "images": [
+                "@lADPDe7s2ySi18PNA6XNBXg",
+                "@lADPDf0i1beuNF3NAxTNBXg",
+                "@lADPDe7s2ySRnIvNA6fNBXg"
+            ],
+            "id": "imageList_1686283179480"
+        }
+    ]
+}
+
+
+def generate_multi_text_image_card_data(title: str, logo: str, texts: [str], images: [str]) -> dict:
+    card_data = copy.deepcopy(INTERACTIVE_CARD_JSON_SAMPLE_MULTI_TEXT_IMAGE)
+
+    if title != "":
+        card_data["header"]["title"]["text"] = title
+
+    if logo != "":
+        card_data["header"]["logo"] = logo
+
+    card_data["contents"] = []
+    for text in texts:
+        text_line = {
+            "type": "text",
+            "text": text,
+            "id": "text_" + str(uuid.uuid1())
+        }
+        divider_line = {
+            "type": "divider",
+            "id": "divider_" + str(uuid.uuid1())
+        }
+        card_data["contents"].append(text_line)
+        card_data["contents"].append(divider_line)
+
+    image_list = {
+        "type": "imageList",
+        "images": images,
+        "id": "imageList_" + str(uuid.uuid1())
+    }
+    card_data["contents"].append(image_list)
+
+    return card_data
+
 
 '''
 极简卡片组合：title-text-image-button
