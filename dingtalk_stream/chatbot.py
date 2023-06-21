@@ -198,7 +198,7 @@ class ChatbotHandler(CallbackHandler):
     def set_off_duty_prompt(self, text: str, title: str = "", logo: str = ""):
         """
         设置离线提示词，需要使用OpenAPI，当前仅支持自建应用。
-        :param text: 离线提示词
+        :param text: 离线提示词，支持markdown
         :param title: 机器人名称，默认："钉钉Stream机器人"
         :param logo: 机器人logo，默认："@lALPDfJ6V_FPDmvNAfTNAfQ"
         :return:

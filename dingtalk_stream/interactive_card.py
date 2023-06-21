@@ -52,7 +52,7 @@ def generate_multi_text_line_card_data(title: str, logo: str, texts: [str]) -> d
     card_data["contents"] = []
     for text in texts:
         text_line = {
-            "type": "text",
+            "type": "markdown",
             "text": text,
             "id": "text_" + str(uuid.uuid1())
         }
@@ -116,7 +116,7 @@ def generate_multi_text_image_card_data(title: str, logo: str, texts: [str], ima
     card_data["contents"] = []
     for text in texts:
         text_line = {
-            "type": "text",
+            "type": "markdown",
             "text": text,
             "id": "text_" + str(uuid.uuid1())
         }
