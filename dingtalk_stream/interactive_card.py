@@ -10,6 +10,7 @@ INTERACTIVE_CARD_JSON_SAMPLE_3 较丰富的组件卡片，title-image-markdown-b
 高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
 """
 
+
 '''
 实用卡片模板：多行文本
 '''
@@ -27,9 +28,9 @@ INTERACTIVE_CARD_JSON_SAMPLE_MULTI_TEXT_LINE = {
     },
     "contents": [
         {
-            "type": "text",
+            "type": "markdown",
             "text": "钉钉正在为各行各业提供专业解决方案，沉淀钉钉1900万企业组织核心业务场景，提供专属钉钉、教育、医疗、新零售等多行业多维度的解决方案。",
-            "id": "text_1686281949314"
+            "id": "markdown_1686281949314"
         },
         {
             "type": "divider",
@@ -82,9 +83,9 @@ INTERACTIVE_CARD_JSON_SAMPLE_MULTI_TEXT_IMAGE = {
     },
     "contents": [
         {
-            "type": "text",
+            "type": "markdown",
             "text": "钉钉正在为各行各业提供专业解决方案，沉淀钉钉1900万企业组织核心业务场景，提供专属钉钉、教育、医疗、新零售等多行业多维度的解决方案。",
-            "id": "text_1686281949314"
+            "id": "markdown_1686281949314"
         },
         {
             "type": "divider",
@@ -153,7 +154,7 @@ INTERACTIVE_CARD_JSON_SAMPLE_1 = {
     },
     "contents": [
         {
-            "type": "text",
+            "type": "markdown",
             "text": "钉钉，让进步发生！\n 更新时间：2023-06-06 12:00",
             "id": "text_1686025745169"
         },
@@ -213,7 +214,7 @@ INTERACTIVE_CARD_JSON_SAMPLE_2 = {
     },
     "contents": [
         {
-            "type": "text",
+            "type": "markdown",
             "text": "钉钉正在为各行各业提供专业解决方案，沉淀钉钉1900万企业组织核心业务场景，提供专属钉钉、教育、医疗、新零售等多行业多维度的解决方案。",
             "id": "text_1686025745169"
         },

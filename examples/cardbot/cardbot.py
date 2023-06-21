@@ -11,7 +11,6 @@ import logging
 from dingtalk_stream import AckMessage, interactive_card
 import dingtalk_stream
 import time
-import copy, asyncio
 
 
 def setup_logger():
@@ -55,7 +54,6 @@ class CardBotHandler(dingtalk_stream.AsyncChatbotHandler):
         :param message:
         :return:
         '''
-
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
 
         texts = [
@@ -66,7 +64,7 @@ class CardBotHandler(dingtalk_stream.AsyncChatbotHandler):
         self.reply_card(
             interactive_card.generate_multi_text_line_card_data(title="机器人名字", logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
                                                                 texts=texts),
-            incoming_message, False)
+            incoming_message, at_sender=True, at_all=False)
 
         images = [
             "@lADPDe7s2ySi18PNA6XNBXg",
@@ -78,7 +76,7 @@ class CardBotHandler(dingtalk_stream.AsyncChatbotHandler):
         card_biz_id = self.reply_card(
             interactive_card.generate_multi_text_image_card_data(title="机器人名字", logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
                                                                  texts=texts, images=images),
-            incoming_message, False)
+            incoming_message, at_sender=True, at_all=False)
 
         # 再试试更新卡片
         time.sleep(3)
@@ -108,7 +106,13 @@ def main():
 
     credential = dingtalk_stream.Credential(options.client_id, options.client_secret)
     client = dingtalk_stream.DingTalkStreamClient(credential)
-    client.register_callback_hanlder(dingtalk_stream.chatbot.ChatbotMessage.TOPIC, CardBotHandler(logger))
+
+    card_bot_handler = CardBotHandler(logger)
+
+    client.register_callback_hanlder(dingtalk_stream.chatbot.ChatbotMessage.TOPIC, card_bot_handler)
+
+    card_bot_handler.set_off_duty_prompt("不好意思，我已下班，请稍后联系我！")
+
     client.start_forever()
 
 

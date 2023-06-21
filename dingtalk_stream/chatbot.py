@@ -6,6 +6,8 @@ import platform
 import hashlib
 from .stream import CallbackHandler, CallbackMessage
 from .frames import AckMessage, Headers
+from .interactive_card import generate_multi_text_line_card_data
+from .utils import DINGTALK_OPENAPI_ENDPOINT
 from concurrent.futures import ThreadPoolExecutor
 import uuid
 
@@ -193,6 +195,55 @@ class ChatbotMessage(object):
 
 class ChatbotHandler(CallbackHandler):
 
+    def set_off_duty_prompt(self, text: str, title: str, logo: str):
+        """
+        设置离线提示词，需要使用OpenAPI，当前仅支持自建应用。
+        :param text: 离线提示词
+        :param title: 机器人名称，默认："钉钉Stream机器人"
+        :param logo: 机器人logo，默认："@lALPDfJ6V_FPDmvNAfTNAfQ"
+        :return:
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error('send_off_duty_prompt failed, cannot get dingtalk access token')
+            return None
+
+        if title is None or title == "":
+            title = "钉钉Stream机器人"
+
+        if logo is None or logo == "":
+            logo = "@lALPDfJ6V_FPDmvNAfTNAfQ"
+
+        prompt_card_data = generate_multi_text_line_card_data(title=title, logo=logo, texts=[text])
+
+        request_headers = {
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+            'x-acs-dingtalk-access-token': access_token,
+            'User-Agent': ('DingTalkStream/1.0 SDK/0.1.0 Python/%s '
+                           '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
+                           ) % platform.python_version(),
+        }
+
+        values = {
+            'robotCode': self.dingtalk_client.credential.client_id,
+            'cardData': json.dumps(prompt_card_data),
+            'cardTemplateId': "StandardCard",
+        }
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/innerApi/robot/stream/away/template/update'
+
+        try:
+            response = requests.post(url,
+                                     headers=request_headers,
+                                     data=json.dumps(values))
+
+            response.raise_for_status()
+        except Exception as e:
+            self.logger.error('set_off_duty_prompt, error=%s, response=%s', e, response.text)
+            return response.status_code
+        return response.json()
+
     def reply_text(self,
                    text: str,
                    incoming_message: ChatbotMessage):
@@ -250,13 +301,15 @@ class ChatbotHandler(CallbackHandler):
     def reply_card(self,
                    card_data: dict,
                    incoming_message: ChatbotMessage,
+                   at_sender: bool,
                    at_all: bool) -> str:
         """
         回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
         https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
         :param card_data: 卡片数据内容，interactive_card.py中有一些简单的样例，高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
-        :param at_all: 是否at所有人
         :param incoming_message: 回调数据源
+        :param at_sender: 是否at发送人
+        :param at_all: 是否at所有人
         :return:
         """
         access_token = self.dingtalk_client.get_access_token()
@@ -300,7 +353,16 @@ class ChatbotHandler(CallbackHandler):
         else:
             body["sendOptions"]["atAll"] = False
 
-        url = 'https://api.dingtalk.com/v1.0/im/v1.0/robot/interactiveCards/send'
+        if at_sender:
+            user_list_json = [
+                {
+                    "nickName": incoming_message.sender_nick,
+                    "userId": incoming_message.sender_staff_id
+                }
+            ]
+            body["sendOptions"]["atUserListJson"] = json.dumps(user_list_json, ensure_ascii=False)
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/im/v1.0/robot/interactiveCards/send'
         try:
             response = requests.post(url,
                                      headers=request_headers,
@@ -338,7 +400,7 @@ class ChatbotHandler(CallbackHandler):
             'cardBizId': card_biz_id,
             'cardData': json.dumps(card_data),
         }
-        url = 'https://api.dingtalk.com/v1.0/im/robots/interactiveCards'
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/im/robots/interactiveCards'
         try:
             response = requests.put(url,
                                     headers=request_headers,

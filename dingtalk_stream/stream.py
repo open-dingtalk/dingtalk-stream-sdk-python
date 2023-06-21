@@ -21,10 +21,11 @@ from .frames import SystemMessage
 from .frames import EventMessage
 from .frames import CallbackMessage
 from .log import setup_default_logger
+from .utils import DINGTALK_OPENAPI_ENDPOINT
 
 
 class DingTalkStreamClient(object):
-    OPEN_CONNECTION_API = 'https://api.dingtalk.com/v1.0/gateway/connections/open'
+    OPEN_CONNECTION_API = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/gateway/connections/open'
     TAG_DISCONNECT = 'disconnect'
 
     def __init__(self, credential: Credential, logger: logging.Logger = None):
@@ -101,7 +102,8 @@ class DingTalkStreamClient(object):
             if handler:
                 ack = await handler.raw_process(msg)
             else:
-                self.logger.warning("unknown callback message topic, topic=%s, message=%s", msg.headers.topic, json_message)
+                self.logger.warning("unknown callback message topic, topic=%s, message=%s", msg.headers.topic,
+                                    json_message)
         else:
             self.logger.warning('unknown message, content=%s', json_message)
         if ack:
@@ -172,7 +174,7 @@ class DingTalkStreamClient(object):
             'appSecret': self.credential.client_secret,
         }
         try:
-            response = requests.post('https://api.dingtalk.com/v1.0/oauth2/accessToken',
+            response = requests.post(DINGTALK_OPENAPI_ENDPOINT + '/v1.0/oauth2/accessToken',
                                      headers=request_headers,
                                      data=json.dumps(values))
             response.raise_for_status()
@@ -191,10 +193,10 @@ class DingTalkStreamClient(object):
             self.logger.error('upload_to_dingtalk failed, cannot get dingtalk access token')
             return None
         files = {
-          'media': (filename, image_content, mimetype),
+            'media': (filename, image_content, mimetype),
         }
         values = {
-          'type': filetype,
+            'type': filetype,
         }
         upload_url = ('https://oapi.dingtalk.com/media/upload?access_token=%s'
                       ) % urllib.parse.quote_plus(access_token)
