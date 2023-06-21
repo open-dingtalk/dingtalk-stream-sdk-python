@@ -195,7 +195,7 @@ class ChatbotMessage(object):
 
 class ChatbotHandler(CallbackHandler):
 
-    def set_off_duty_prompt(self, text: str, title: str, logo: str):
+    def set_off_duty_prompt(self, text: str, title: str = "", logo: str = ""):
         """
         设置离线提示词，需要使用OpenAPI，当前仅支持自建应用。
         :param text: 离线提示词
@@ -301,8 +301,8 @@ class ChatbotHandler(CallbackHandler):
     def reply_card(self,
                    card_data: dict,
                    incoming_message: ChatbotMessage,
-                   at_sender: bool,
-                   at_all: bool) -> str:
+                   at_sender: bool = False,
+                   at_all: bool = False) -> str:
         """
         回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
         https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
