@@ -8,7 +8,7 @@ sys.path.append(".")
 
 import argparse
 import logging
-from dingtalk_stream import AckMessage, interactive_card
+from dingtalk_stream import AckMessage
 import dingtalk_stream
 import time
 
@@ -49,53 +49,15 @@ class CardBotHandler(dingtalk_stream.AsyncChatbotHandler):
             self.logger = logger
 
     def process(self, callback: dingtalk_stream.CallbackMessage):
-        '''
-        多线程场景，process函数不要用 async 修饰
-        :param message:
-        :return:
-        '''
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
 
-        texts = [
-            "第一行文本"
-        ]
+        card_instance = self.reply_markdown_card("**这是一个markdown消息，初始状态，将于5s后更新**", incoming_message,
+                                                 title="钉钉AI卡片",
+                                                 logo="@lALPDfJ6V_FPDmvNAfTNAfQ")
 
-        # 先回复一个文本卡片
-        self.reply_card(
-            interactive_card.generate_multi_text_line_card_data(title="机器人名字", logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
-                                                                texts=texts),
-            incoming_message, at_sender=True, at_all=False)
-
-        images = [
-            "@lADPDe7s2ySi18PNA6XNBXg",
-            "@lADPDf0i1beuNF3NAxTNBXg",
-            "@lADPDe7s2ySRnIvNA6fNBXg"
-        ]
-
-        # 再回复一个文本+图片卡片
-        card_biz_id = self.reply_card(
-            interactive_card.generate_multi_text_image_card_data(title="机器人名字", logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
-                                                                 texts=texts, images=images),
-            incoming_message, at_sender=True, at_all=False)
-
-        # 再试试更新卡片
-        time.sleep(3)
-
-        # 上传图片
-        media_id = self.dingtalk_client.upload_to_dingtalk(open('./img.png', 'rb'),
-                                                           filetype='image',
-                                                           filename='image.png',
-                                                           mimetype='image/png')
-
-        texts = [
-            "更新后的第一行文本",
-            "更新后的第二行文本"
-        ]
-
-        self.update_card(card_biz_id, interactive_card.generate_multi_text_image_card_data(title="机器人名字",
-                                                                                           logo="@lALPDfJ6V_FPDmvNAfTNAfQ",
-                                                                                           texts=texts,
-                                                                                           images=[media_id]))
+        # 如果需要更新卡片内容的话，使用这个：
+        time.sleep(5)
+        card_instance.update("**这是一个markdown消息，已更新**")
 
         return AckMessage.STATUS_OK, 'OK'
 

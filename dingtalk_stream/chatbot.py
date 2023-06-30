@@ -10,6 +10,7 @@ from .interactive_card import generate_multi_text_line_card_data
 from .utils import DINGTALK_OPENAPI_ENDPOINT
 from concurrent.futures import ThreadPoolExecutor
 import uuid
+from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance
 
 
 class AtUser(object):
@@ -194,6 +195,43 @@ class ChatbotMessage(object):
 
 
 class ChatbotHandler(CallbackHandler):
+
+    def __init__(self):
+        super(ChatbotHandler, self).__init__()
+
+    def reply_markdown_card(self, markdown: str, incoming_message: ChatbotMessage, title: str = "", logo: str = "",
+                            at_sender: bool = False, at_all: bool = False) -> MarkdownCardInstance:
+        """
+        回复一个markdown卡片
+        :param markdown:
+        :param incoming_message:
+        :param title:
+        :param logo:
+        :param at_sender:
+        :param at_all:
+        :return:
+        """
+        markdown_card_instance = MarkdownCardInstance(self.dingtalk_client, incoming_message)
+        markdown_card_instance.set_title_and_logo(title, logo)
+
+        markdown_card_instance.reply(markdown, at_sender, at_all)
+
+        return markdown_card_instance
+
+    def ai_markdown_card_start(self, incoming_message: ChatbotMessage, title: str = "",
+                               logo: str = "") -> AIMarkdownCardInstance:
+        """
+        发起一个AI卡片
+        :param incoming_message:
+        :param title:
+        :param logo:
+        :return:
+        """
+        ai_markdown_card_instance = AIMarkdownCardInstance(self.dingtalk_client, incoming_message)
+        ai_markdown_card_instance.set_title_and_logo(title, logo)
+
+        ai_markdown_card_instance.ai_start()
+        return ai_markdown_card_instance
 
     def set_off_duty_prompt(self, text: str, title: str = "", logo: str = ""):
         """
