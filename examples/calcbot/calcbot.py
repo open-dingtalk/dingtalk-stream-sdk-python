@@ -2,10 +2,8 @@
 
 import argparse
 import logging
-from dingtalk_stream import AckMessage, interactive_card
+from dingtalk_stream import AckMessage
 import dingtalk_stream
-import time
-
 
 def setup_logger():
     logger = logging.getLogger()
