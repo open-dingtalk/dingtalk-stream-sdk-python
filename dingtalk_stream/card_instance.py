@@ -5,6 +5,7 @@
 """
 
 from .card_replier import CardReplier, AICardReplier, AICardStatus
+import json
 
 
 class MarkdownCardInstance(CardReplier):
@@ -70,7 +71,7 @@ class AIMarkdownCardInstance(AICardReplier):
 
     def __init__(self, dingtalk_client, incoming_message):
         super(AIMarkdownCardInstance, self).__init__(dingtalk_client, incoming_message)
-        self.card_template_id = "533f959a-8b28-4d29-8856-77a18d3ad3c2.schema"
+        self.card_template_id = "382e4302-551d-4880-bf29-a30acfab2e71.schema"
         self.card_instance_id = None
         self.title = None
         self.logo = None
@@ -103,14 +104,24 @@ class AIMarkdownCardInstance(AICardReplier):
         if not self.inputing_status:
             card_data = {
                 "flowStatus": AICardStatus.INPUTING,
-                "messageContent": ""
+                "msgContent": ""
             }
 
             if self.title is not None and self.title != "":
-                card_data["title"] = self.title
+                card_data["msgTitle"] = self.title
 
             if self.logo is not None and self.logo != "":
                 card_data["logo"] = self.logo
+
+            order = [
+                "msgTitle",
+                "msgButtons",
+                "msgImages",
+                "msgTextList",
+                "msgContent"
+            ]
+
+            card_data["sys_full_json_obj"] = json.dumps({"order": order})
 
             self.put_card_data(self.card_instance_id, card_data)
 
@@ -121,7 +132,7 @@ class AIMarkdownCardInstance(AICardReplier):
         else:
             self.markdown = markdown
 
-        self.streaming(self.card_instance_id, "messageContent", self.markdown, append=False, finished=False,
+        self.streaming(self.card_instance_id, "msgContent", self.markdown, append=False, finished=False,
                        failed=False)
 
     def ai_finish(self, markdown: str = ""):
@@ -134,17 +145,26 @@ class AIMarkdownCardInstance(AICardReplier):
             self.logger.error('AIMarkdownCardInstance.ai_finish failed, you should send card first.')
             return
 
-        if markdown == "":
+        if markdown == "" or markdown is None:
             markdown = self.markdown
         else:
             self.markdown = markdown
 
+        order = [
+            "msgTitle",
+            "msgButtons",
+            "msgImages",
+            "msgTextList",
+            "msgContent"
+        ]
+
         card_data = {
-            "messageContent": markdown,
+            "msgContent": markdown,
+            "sys_full_json_obj": json.dumps({"order": order})
         }
 
         if self.title is not None and self.title != "":
-            card_data["title"] = self.title
+            card_data["msgTitle"] = self.title
 
         if self.logo is not None and self.logo != "":
             card_data["logo"] = self.logo
@@ -164,7 +184,7 @@ class AIMarkdownCardInstance(AICardReplier):
         card_data = {}
 
         if self.title is not None and self.title != "":
-            card_data["title"] = self.title
+            card_data["msgTitle"] = self.title
 
         if self.logo is not None and self.logo != "":
             card_data["logo"] = self.logo

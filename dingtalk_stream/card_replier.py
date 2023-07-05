@@ -231,7 +231,7 @@ class AICardReplier(CardReplier):
             "isError": failed,
         }
 
-        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/update/streaming'
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/streaming'
         try:
             response = requests.put(url,
                                     headers=self.get_request_header(access_token),
