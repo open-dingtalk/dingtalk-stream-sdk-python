@@ -77,7 +77,7 @@ class DingTalkStreamClient(object):
                     route_result = await self.route_message(json_message)
                     if route_result == DingTalkStreamClient.TAG_DISCONNECT:
                         break
-                self.websocket.close()
+                # self.websocket.close()
         return
 
     async def route_message(self, json_message):
@@ -91,6 +91,7 @@ class DingTalkStreamClient(object):
             ack = await self.system_handler.raw_process(msg)
             if msg.headers.topic == SystemMessage.TOPIC_DISCONNECT:
                 result = DingTalkStreamClient.TAG_DISCONNECT
+                self.logger.info("received disconnect topic=%s, message=%s", msg.headers.topic, json_message)
             else:
                 self.logger.warning("unknown message topic, topic=%s, message=%s", msg.headers.topic, json_message)
         elif msg_type == EventMessage.TYPE:

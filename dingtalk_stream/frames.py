@@ -161,7 +161,7 @@ class CallbackMessage(object):
 
 class SystemMessage(object):
     TYPE = 'SYSTEM'
-    TOPIC_DISCONNECT = 'TAG_DISCONNECT'
+    TOPIC_DISCONNECT = 'disconnect'
 
     def __init__(self):
         self.spec_version = ''
