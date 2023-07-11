@@ -12,7 +12,7 @@ class CallbackHandler(object):
     def __init__(self):
         self.dingtalk_client = None
         self.logger = setup_default_logger('dingtalk_stream.handler')
-    
+
     def pre_start(self):
         return
 

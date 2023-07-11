@@ -190,3 +190,35 @@ class AIMarkdownCardInstance(AICardReplier):
             card_data["logo"] = self.logo
 
         self.fail(self.card_instance_id, card_data)
+
+
+class CarouselCardInstance(CardReplier):
+    """
+    一款包含轮播图组件在内的卡片
+    """
+
+    def __init__(self, dingtalk_client, incoming_message):
+        super(CarouselCardInstance, self).__init__(dingtalk_client, incoming_message)
+        self.card_template_id = "a438d39a-b404-487f-9871-7a2347ab5b10.schema"
+        self.card_instance_id = None
+        self.title = None
+        self.logo = None
+
+    def set_title_and_logo(self, title: str, logo: str):
+        self.title = title
+        self.logo = logo
+
+    def reply(self, markdown: str, action_name: str, action_data: dict):
+        card_data = {
+            "markdown": markdown,
+            "actionName": action_name,
+            "actionData": action_data,
+        }
+
+        if self.title is not None and self.title != "":
+            card_data["title"] = self.title
+
+        if self.logo is not None and self.logo != "":
+            card_data["logo"] = self.logo
+
+        self.card_instance_id = self.create_and_send_card(self.card_template_id, card_data, callback_type="STREAM")

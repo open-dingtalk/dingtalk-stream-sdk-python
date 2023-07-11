@@ -10,7 +10,7 @@ from .interactive_card import generate_multi_text_line_card_data
 from .utils import DINGTALK_OPENAPI_ENDPOINT
 from concurrent.futures import ThreadPoolExecutor
 import uuid
-from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance
+from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance, CarouselCardInstance
 
 
 class AtUser(object):
@@ -93,6 +93,7 @@ class ChatbotMessage(object):
         self.conversation_title = None
         self.message_type = None
         self.sender_staff_id = None
+        self.content = None
 
         self.extensions = {}
 
@@ -198,6 +199,25 @@ class ChatbotHandler(CallbackHandler):
 
     def __init__(self):
         super(ChatbotHandler, self).__init__()
+
+    def reply_carousel_card(self, markdown: str, action_name: str, action_data: dict, incoming_message: ChatbotMessage,
+                            title: str = "", logo: str = ""):
+        """
+        回复一个轮播图卡片
+        :param markdown:
+        :param action_name:
+        :param action_data:
+        :param incoming_message:
+        :param title:
+        :param logo:
+        :return:
+        """
+        carousel_card_instance = CarouselCardInstance(self.dingtalk_client, incoming_message)
+        carousel_card_instance.set_title_and_logo(title, logo)
+
+        carousel_card_instance.reply(markdown, action_name, action_data)
+
+        return carousel_card_instance
 
     def reply_markdown_card(self, markdown: str, incoming_message: ChatbotMessage, title: str = "", logo: str = "",
                             at_sender: bool = False, at_all: bool = False) -> MarkdownCardInstance:
