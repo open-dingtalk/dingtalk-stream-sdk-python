@@ -11,6 +11,7 @@ from .utils import DINGTALK_OPENAPI_ENDPOINT
 from concurrent.futures import ThreadPoolExecutor
 import uuid
 from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance
+import traceback
 
 
 class AtUser(object):
@@ -69,6 +70,47 @@ class TextContent(object):
         return result
 
 
+class ImageContent(object):
+
+    def __init__(self):
+        self.download_code = None
+
+    @classmethod
+    def from_dict(cls, d):
+        content = ImageContent()
+        for name, value in d.items():
+            if name == 'downloadCode':
+                content.download_code = value
+        return content
+
+    def to_dict(self):
+        result = {}
+        if self.download_code is not None:
+            result['downloadCode'] = self.download_code
+        return result
+
+
+class RichTextContent(object):
+
+    def __init__(self):
+        self.rich_text_list = None
+
+    @classmethod
+    def from_dict(cls, d):
+        content = RichTextContent()
+        content.rich_text_list = []
+        for name, value in d.items():
+            if name == 'richText':
+                content.rich_text_list = value
+        return content
+
+    def to_dict(self):
+        result = {}
+        if self.rich_text_list is not None:
+            result['richText'] = self.rich_text_list
+        return result
+
+
 class ChatbotMessage(object):
     TOPIC = '/v1.0/im/bot/messages/get'
     text: TextContent
@@ -92,6 +134,8 @@ class ChatbotMessage(object):
         self.sender_corp_id = None
         self.conversation_title = None
         self.message_type = None
+        self.image_content = None
+        self.rich_text_content = None
         self.sender_staff_id = None
 
         self.extensions = {}
@@ -123,8 +167,6 @@ class ChatbotMessage(object):
                 msg.is_admin = value
             elif name == 'createAt':
                 msg.create_at = value
-            elif name == 'text':
-                msg.text = TextContent.from_dict(value)
             elif name == 'conversationType':
                 msg.conversation_type = value
             elif name == 'atUsers':
@@ -137,6 +179,12 @@ class ChatbotMessage(object):
                 msg.conversation_title = value
             elif name == 'msgtype':
                 msg.message_type = value
+                if value == 'text':
+                    msg.text = TextContent.from_dict(d['text'])
+                elif value == 'picture':
+                    msg.image_content = ImageContent.from_dict(d['content'])
+                elif value == 'richText':
+                    msg.rich_text_content = RichTextContent.from_dict(d['content'])
             elif name == 'senderStaffId':
                 msg.sender_staff_id = value
             else:
@@ -169,6 +217,10 @@ class ChatbotMessage(object):
             result['createAt'] = self.create_at
         if self.text is not None:
             result['text'] = self.text.to_dict()
+        if self.image_content is not None:
+            result['content'] = self.image_content.to_dict()
+        if self.rich_text_content is not None:
+            result['content'] = self.rich_text_content.to_dict()
         if self.conversation_type is not None:
             result['conversationType'] = self.conversation_type
         if self.at_users is not None:
@@ -184,6 +236,28 @@ class ChatbotMessage(object):
         if self.sender_staff_id is not None:
             result['senderStaffId'] = self.sender_staff_id
         return result
+
+    def get_text_list(self):
+        if self.message_type == 'text':
+            return [self.text.content]
+        elif self.message_type == 'richText':
+            text = []
+            for item in self.rich_text_content.rich_text_list:
+                if 'text' in item:
+                    text.append(item["text"])
+
+            return text
+
+    def get_image_list(self):
+        if self.message_type == 'picture':
+            return [self.image_content.download_code]
+        elif self.message_type == 'richText':
+            images = []
+            for item in self.rich_text_content.rich_text_list:
+                if 'downloadCode' in item:
+                    images.append(item['downloadCode'])
+
+            return images
 
     def __str__(self):
         return 'ChatbotMessage(message_type=%s, text=%s, sender_nick=%s, conversation_title=%s)' % (
@@ -232,6 +306,75 @@ class ChatbotHandler(CallbackHandler):
 
         ai_markdown_card_instance.ai_start()
         return ai_markdown_card_instance
+
+    def extract_text_from_incoming_message(self, incoming_message: ChatbotMessage) -> list:
+        """
+        获取文本列表
+        :param incoming_message:
+        :return: text list。如果是纯文本消息，结果列表中只有一个元素；如果是富文本消息，结果是长列表，按富文本消息的逻辑分割，大致是按换行符分割的。
+        """
+        return incoming_message.get_text_list()
+
+    def extract_image_from_incoming_message(self, incoming_message: ChatbotMessage) -> list:
+        """
+        获取用户发送的图片，重新上传，获取新的mediaId列表
+        :param incoming_message:
+        :return: mediaid list
+        """
+        image_list = incoming_message.get_image_list()
+        if image_list is None or len(image_list) == 0:
+            return None
+
+        mediaids = []
+        for download_code in image_list:
+            download_url = self.get_image_download_url(download_code)
+
+            image_content = requests.get(download_url)
+            mediaid = self.dingtalk_client.upload_to_dingtalk(image_content.content, filetype='image',
+                                                              filename='image.png',
+                                                              mimetype='image/png')
+
+            mediaids.append(mediaid)
+
+        return mediaids
+
+    def get_image_download_url(self, download_code: str) -> str:
+        """
+        根据downloadCode获取下载链接 https://open.dingtalk.com/document/isvapp/download-the-file-content-of-the-robot-receiving-message
+        :param download_code:
+        :return:
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error('send_off_duty_prompt failed, cannot get dingtalk access token')
+            return None
+
+        request_headers = {
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+            'x-acs-dingtalk-access-token': access_token,
+            'User-Agent': ('DingTalkStream/1.0 SDK/0.1.0 Python/%s '
+                           '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
+                           ) % platform.python_version(),
+        }
+
+        values = {
+            'robotCode': self.dingtalk_client.credential.client_id,
+            'downloadCode': download_code,
+        }
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/robot/messageFiles/download'
+
+        try:
+            response = requests.post(url,
+                                     headers=request_headers,
+                                     data=json.dumps(values))
+
+            response.raise_for_status()
+        except Exception as e:
+            self.logger.error('get_image_download_url, error=%s, response=%s', e, response.text)
+            return ""
+        return response.json()["downloadUrl"]
 
     def set_off_duty_prompt(self, text: str, title: str = "", logo: str = ""):
         """
@@ -482,7 +625,7 @@ class AsyncChatbotHandler(ChatbotHandler):
             try:
                 self.process(callback_message)
             except Exception as e:
-                self.logger.error('async process exception, error=%s', e)
+                self.logger.error(traceback.format_exc())
 
         self.async_executor.submit(func)
 
