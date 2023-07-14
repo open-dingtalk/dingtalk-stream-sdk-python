@@ -35,7 +35,8 @@ class CardReplier(object):
                            ) % platform.python_version(),
         }
 
-    def create_and_send_card(self, card_template_id: str, card_data: dict, at_sender: bool = False,
+    def create_and_send_card(self, card_template_id: str, card_data: dict, callback_type: str = "",
+                             callback_route_key: str = "", at_sender: bool = False,
                              at_all: bool = False) -> str:
         """
         发送卡片，两步骤：创建+投放。
@@ -67,6 +68,12 @@ class CardReplier(object):
                 "supportForward": False
             }
         }
+
+        if callback_type == "STREAM":
+            body["callbackType"] = "STREAM"
+        elif callback_type == "HTTP":
+            body["callbackType"] = "HTTP"
+            body["callbackRouteKey"] = callback_route_key
 
         # 创建卡片实例。https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances'
@@ -179,7 +186,7 @@ class AICardReplier(CardReplier):
         """
         card_data_with_status = copy.deepcopy(card_data)
         card_data_with_status["flowStatus"] = AICardStatus.PROCESSING
-        return self.create_and_send_card(card_template_id, card_data_with_status, False, False)
+        return self.create_and_send_card(card_template_id, card_data_with_status, at_sender=False, at_all=False)
 
     def finish(self, card_instance_id: str, card_data: dict):
         """

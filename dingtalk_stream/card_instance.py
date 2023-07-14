@@ -48,7 +48,7 @@ class MarkdownCardInstance(CardReplier):
         :return:
         """
         self.card_instance_id = self.create_and_send_card(self.card_template_id, self._get_card_data(markdown),
-                                                          at_sender, at_all)
+                                                          at_sender=at_sender, at_all=at_all)
 
     def update(self, markdown: str):
         """
@@ -190,3 +190,82 @@ class AIMarkdownCardInstance(AICardReplier):
             card_data["logo"] = self.logo
 
         self.fail(self.card_instance_id, card_data)
+
+
+class CarouselCardInstance(AICardReplier):
+    """
+    轮播图卡片
+    """
+
+    def __init__(self, dingtalk_client, incoming_message):
+        super(CarouselCardInstance, self).__init__(dingtalk_client, incoming_message)
+        self.card_template_id = "382e4302-551d-4880-bf29-a30acfab2e71.schema"
+        self.card_instance_id = None
+        self.title = None
+        self.logo = None
+
+    def set_title_and_logo(self, title: str, logo: str):
+        self.title = title
+        self.logo = logo
+
+    def ai_start(self):
+        """
+        开始执行中
+        :return:
+        """
+        self.card_instance_id = self.start(self.card_template_id, {})
+
+    def reply(self, markdown: str, image_slider_list: list, button_text: str = "submit"):
+        """
+        回复卡片
+        :param button_text:
+        :param image_slider_list:
+        :param markdown:
+        :return:
+        """
+
+        sys_full_json_obj = {
+            "order": [
+                "msgTitle",
+                "msgMarkdown",
+                "msgSlider",
+                "msgImages",
+                "msgTextList",
+                "msgButtons",
+            ],
+            "msgSlider": [],
+            "msgButtons": [
+                {
+                    "text": button_text,
+                    "color": "blue",
+                    "id": "image_slider_select_button",
+                    "request": True
+                }
+            ]
+        }
+
+        if button_text is not None and button_text!="":
+            sys_full_json_obj["msgButtons"][0]["text"] = button_text
+
+        for image_slider in image_slider_list:
+            sys_full_json_obj["msgSlider"].append({
+                "title": image_slider[0],
+                "image": image_slider[1]
+            })
+
+        card_data = {
+            "msgMarkdown": markdown,
+            "sys_full_json_obj": json.dumps(sys_full_json_obj)
+        }
+
+        if self.title is not None and self.title != "":
+            card_data["msgTitle"] = self.title
+
+        if self.logo is not None and self.logo != "":
+            card_data["logo"] = self.logo
+
+        self.card_instance_id = self.create_and_send_card(self.card_template_id,
+                                                          {"flowStatus": AICardStatus.PROCESSING},
+                                                          callback_type="STREAM")
+
+        self.finish(self.card_instance_id, card_data)
