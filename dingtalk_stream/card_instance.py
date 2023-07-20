@@ -119,9 +119,10 @@ class MarkdownButtonCardInstance(CardReplier):
         self.button_list = button_list
         self.card_instance_id = self.create_and_send_card(self.card_template_id, self._get_card_data(markdown, tips))
 
-    def update(self, markdown: str, tips: str = ""):
+    def update(self, markdown: str, button_list: list, tips: str = ""):
         """
         更新markdown内容，如果你reply了多次，这里只会更新最后一张卡片
+        :param button_list:
         :param tips:
         :param markdown:
         :return:
@@ -130,6 +131,7 @@ class MarkdownButtonCardInstance(CardReplier):
             self.logger.error('MarkdownButtonCardInstance.update failed, you should send card first.')
             return
 
+        self.button_list = button_list
         self.put_card_data(self.card_instance_id, self._get_card_data(markdown, tips))
 
 
