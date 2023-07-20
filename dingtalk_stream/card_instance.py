@@ -63,6 +63,76 @@ class MarkdownCardInstance(CardReplier):
         self.put_card_data(self.card_instance_id, self._get_card_data(markdown))
 
 
+class MarkdownButtonCardInstance(CardReplier):
+    """
+    一款超级通用的markdown卡片
+    """
+
+    def __init__(self, dingtalk_client, incoming_message):
+        super(MarkdownButtonCardInstance, self).__init__(dingtalk_client, incoming_message)
+        self.card_template_id = "1366a1eb-bc54-4859-ac88-517c56a9acb1.schema"
+        self.card_instance_id = None
+        self.title = None
+        self.logo = None
+        self.button_list = []
+
+    def set_title_and_logo(self, title: str, logo: str):
+        self.title = title
+        self.logo = logo
+
+    def _get_card_data(self, markdown, tips) -> dict:
+        card_data = {
+            "markdown": markdown,
+            "tips": tips
+        }
+
+        if self.title is not None and self.title != "":
+            card_data["title"] = self.title
+
+        if self.logo is not None and self.logo != "":
+            card_data["logo"] = self.logo
+
+        if self.button_list is not None:
+            sys_full_json_obj = {
+                "msgButtons": []
+            }
+
+            for button in self.button_list:
+                button_info = {
+                    "text": button[0],
+                    "url": button[1],
+                    "color": "gray",
+                }
+                sys_full_json_obj["msgButtons"].append(button_info)
+            card_data["sys_full_json_obj"] = json.dumps(sys_full_json_obj)
+
+        return card_data
+
+    def reply(self, markdown: str, button_list: list, tips: str = ""):
+        """
+        回复markdown内容
+        :param tips:
+        :param button_list:
+        :param markdown:
+        :return:
+        """
+        self.button_list = button_list
+        self.card_instance_id = self.create_and_send_card(self.card_template_id, self._get_card_data(markdown, tips))
+
+    def update(self, markdown: str, tips: str = ""):
+        """
+        更新markdown内容，如果你reply了多次，这里只会更新最后一张卡片
+        :param tips:
+        :param markdown:
+        :return:
+        """
+        if self.card_instance_id is None or self.card_instance_id == "":
+            self.logger.error('MarkdownButtonCardInstance.update failed, you should send card first.')
+            return
+
+        self.put_card_data(self.card_instance_id, self._get_card_data(markdown, tips))
+
+
 class AIMarkdownCardInstance(AICardReplier):
     """
     一款超级通用的AI Markdown卡片
@@ -244,7 +314,7 @@ class CarouselCardInstance(AICardReplier):
             ]
         }
 
-        if button_text is not None and button_text!="":
+        if button_text is not None and button_text != "":
             sys_full_json_obj["msgButtons"][0]["text"] = button_text
 
         for image_slider in image_slider_list:
