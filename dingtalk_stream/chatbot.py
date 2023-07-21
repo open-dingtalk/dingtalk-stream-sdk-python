@@ -269,6 +269,26 @@ class ChatbotMessage(object):
         )
 
 
+def reply_specified_single_chat(user_id: str, user_nickname: str = "") -> ChatbotMessage:
+    d = {
+        "senderId": user_id,
+        "senderStaffId": user_id,
+        "sender": user_nickname,
+        "conversationType": '1',
+        "messageId": str(uuid.uuid1()),
+    }
+    return ChatbotMessage.from_dict(d)
+
+
+def reply_specified_group_chat(open_conversation_id: str) -> ChatbotMessage:
+    d = {
+        "conversationId": open_conversation_id,
+        "conversationType": '2',
+        "messageId": str(uuid.uuid1()),
+    }
+    return ChatbotMessage.from_dict(d)
+
+
 class ChatbotHandler(CallbackHandler):
 
     def __init__(self):

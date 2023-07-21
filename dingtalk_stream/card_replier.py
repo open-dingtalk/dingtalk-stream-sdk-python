@@ -92,7 +92,7 @@ class CardReplier(object):
             "userIdType": 1
         }
 
-        # 2：群聊，2：单聊
+        # 2：群聊，1：单聊
         if self.incoming_message.conversation_type == '2':
             body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(spaceType="IM_GROUP",
                                                                             spaceId=self.incoming_message.conversation_id)
