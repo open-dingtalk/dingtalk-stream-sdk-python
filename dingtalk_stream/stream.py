@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import requests
+import socket
 
 import websockets
 
@@ -144,6 +145,7 @@ class DingTalkStreamClient(object):
             'clientId': self.credential.client_id,
             'clientSecret': self.credential.client_secret,
             'subscriptions': topics,
+            'localIp': self.get_host_ip()
         }).encode('utf-8')
 
         try:
@@ -156,6 +158,20 @@ class DingTalkStreamClient(object):
             self.logger.error("open connection failed, error=%s, response.body=%s", e, http_body)
             return None
         return response.json()
+
+    def get_host_ip(self):
+        """
+        查询本机ip地址
+        :return: ip
+        """
+        ip = ""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
+            return ip
 
     def reset_access_token(self):
         """ reset token if open api return 401 """
