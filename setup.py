@@ -1,6 +1,6 @@
 from setuptools import setup
 
-from .dingtalk_stream import version
+from dingtalk_stream import version
 
 setup(
     name='dingtalk-stream',
