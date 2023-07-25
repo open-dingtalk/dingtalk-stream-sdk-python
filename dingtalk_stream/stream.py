@@ -23,6 +23,7 @@ from .frames import EventMessage
 from .frames import CallbackMessage
 from .log import setup_default_logger
 from .utils import DINGTALK_OPENAPI_ENDPOINT
+from .version import VERSION_STRING
 
 
 class DingTalkStreamClient(object):
@@ -132,9 +133,9 @@ class DingTalkStreamClient(object):
         request_headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'User-Agent': ('DingTalkStream/1.0 SDK/0.1.0 Python/%s '
+            'User-Agent': ('DingTalkStream/1.0 SDK/%s Python/%s '
                            '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
-                           ) % platform.python_version(),
+                           ) % (VERSION_STRING, platform.python_version()),
         }
         topics = []
         if self._is_event_required:
@@ -145,6 +146,7 @@ class DingTalkStreamClient(object):
             'clientId': self.credential.client_id,
             'clientSecret': self.credential.client_secret,
             'subscriptions': topics,
+            'ua': 'dingtalk-sdk-python/v%s' % VERSION_STRING,
             'localIp': self.get_host_ip()
         }).encode('utf-8')
 

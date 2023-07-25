@@ -1,8 +1,10 @@
 from setuptools import setup
 
+from .dingtalk_stream import version
+
 setup(
     name='dingtalk-stream',
-    version='0.7.5',
+    version=version.VERSION_STRING,
     description='A Python library for sending messages to DingTalk chatbot',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
