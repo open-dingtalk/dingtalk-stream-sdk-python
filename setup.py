@@ -1,10 +1,16 @@
+import os
+import re
 from setuptools import setup
 
-from dingtalk_stream import version
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+VERSION_STRING = ''
+with open(os.path.join(BASE_PATH, 'dingtalk_stream', 'version.py')) as fp:
+    content = fp.read()
+    VERSION_STRING = re.findall(r"VERSION_STRING\s*=\s*\'(.*?)\'", content)[0]
 
 setup(
     name='dingtalk-stream',
-    version=version.VERSION_STRING,
+    version=VERSION_STRING,
     description='A Python library for sending messages to DingTalk chatbot',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
