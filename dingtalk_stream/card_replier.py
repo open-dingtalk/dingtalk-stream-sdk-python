@@ -37,10 +37,11 @@ class CardReplier(object):
 
     def create_and_send_card(self, card_template_id: str, card_data: dict, callback_type: str = "",
                              callback_route_key: str = "", at_sender: bool = False,
-                             at_all: bool = False) -> str:
+                             at_all: bool = False, recipients: list = None) -> str:
         """
         发送卡片，两步骤：创建+投放。
         https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
+        :param recipients:
         :param card_template_id: 卡片模板ID
         :param card_data: 卡片数据
         :param at_sender:
@@ -108,6 +109,9 @@ class CardReplier(object):
                 body["imGroupOpenDeliverModel"]["atUserIds"] = {
                     self.incoming_message.sender_staff_id: self.incoming_message.sender_nick,
                 }
+
+            if recipients is not None:
+                body["imGroupOpenDeliverModel"]["recipients"] = recipients
 
         elif self.incoming_message.conversation_type == '1':
             body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(spaceType="IM_ROBOT",
@@ -177,16 +181,18 @@ class AICardReplier(CardReplier):
     def __init__(self, dingtalk_client, incoming_message):
         super(AICardReplier, self).__init__(dingtalk_client, incoming_message)
 
-    def start(self, card_template_id: str, card_data: dict) -> str:
+    def start(self, card_template_id: str, card_data: dict, recipients: list = None) -> str:
         """
         AI卡片的创建接口
+        :param recipients:
         :param card_template_id:
         :param card_data:
         :return:
         """
         card_data_with_status = copy.deepcopy(card_data)
         card_data_with_status["flowStatus"] = AICardStatus.PROCESSING
-        return self.create_and_send_card(card_template_id, card_data_with_status, at_sender=False, at_all=False)
+        return self.create_and_send_card(card_template_id, card_data_with_status, at_sender=False, at_all=False,
+                                         recipients=recipients)
 
     def finish(self, card_instance_id: str, card_data: dict):
         """

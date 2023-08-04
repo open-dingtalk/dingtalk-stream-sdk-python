@@ -353,9 +353,10 @@ class ChatbotHandler(CallbackHandler):
         return carousel_card_instance
 
     def ai_markdown_card_start(self, incoming_message: ChatbotMessage, title: str = "",
-                               logo: str = "") -> AIMarkdownCardInstance:
+                               logo: str = "", recipients: list = None) -> AIMarkdownCardInstance:
         """
         发起一个AI卡片
+        :param recipients:
         :param incoming_message:
         :param title:
         :param logo:
@@ -364,7 +365,7 @@ class ChatbotHandler(CallbackHandler):
         ai_markdown_card_instance = AIMarkdownCardInstance(self.dingtalk_client, incoming_message)
         ai_markdown_card_instance.set_title_and_logo(title, logo)
 
-        ai_markdown_card_instance.ai_start()
+        ai_markdown_card_instance.ai_start(recipients=recipients)
         return ai_markdown_card_instance
 
     def extract_text_from_incoming_message(self, incoming_message: ChatbotMessage) -> list:
