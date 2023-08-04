@@ -154,12 +154,12 @@ class AIMarkdownCardInstance(AICardReplier):
         self.title = title
         self.logo = logo
 
-    def ai_start(self):
+    def ai_start(self, recipients: list = None):
         """
         开始执行中
         :return:
         """
-        self.card_instance_id = self.start(self.card_template_id, {})
+        self.card_instance_id = self.start(self.card_template_id, {}, recipients=recipients)
         self.inputing_status = False
 
     def ai_streaming(self, markdown: str, append: bool = False):
