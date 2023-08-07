@@ -54,6 +54,7 @@ class CardCallbackHandler(dingtalk_stream.CallbackHandler):
         }
         return AckMessage.STATUS_OK, response
 
+
 def main():
     logger = setup_logger()
     options = define_options()
