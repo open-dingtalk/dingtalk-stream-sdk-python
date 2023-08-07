@@ -1,4 +1,4 @@
-import logging
+import json
 
 from .frames import Headers
 from .frames import AckMessage
@@ -9,10 +9,12 @@ from .log import setup_default_logger
 
 
 class CallbackHandler(object):
+    TOPIC_CARD_CALLBACK = '/v1.0/card/instances/callback'
+
     def __init__(self):
         self.dingtalk_client = None
         self.logger = setup_default_logger('dingtalk_stream.handler')
-    
+
     def pre_start(self):
         return
 
@@ -25,8 +27,7 @@ class CallbackHandler(object):
         ack_message.code = code
         ack_message.headers.message_id = callback_message.headers.message_id
         ack_message.headers.content_type = Headers.CONTENT_TYPE_APPLICATION_JSON
-        ack_message.message = message
-        ack_message.data = callback_message.data
+        ack_message.data = {"response": message}
         return ack_message
 
 
