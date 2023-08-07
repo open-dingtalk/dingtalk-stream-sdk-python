@@ -36,7 +36,22 @@ class CardCallbackHandler(dingtalk_stream.CallbackHandler):
             self.logger = logger
 
     async def process(self, callback: dingtalk_stream.CallbackMessage):
-        response = {"mycode": 123, "mymessage": "hello callback"}
+        # 卡片回调的数据构造详见文档：https://open.dingtalk.com/document/orgapp/instructions-for-filling-in-api-card-data
+        response = {
+            'cardData': {
+                'cardParamMap': {
+                    'intParam': '1',
+                    'trueParam': 'true',
+                }},
+            'privateData': {
+                'myUserId': {
+                    'cardParamMap': {
+                        'floatParam': '1.23',
+                        'falseparam': 'false',
+                    },
+                }
+            }
+        }
         return AckMessage.STATUS_OK, response
 
 def main():
