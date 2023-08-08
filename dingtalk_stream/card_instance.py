@@ -94,16 +94,9 @@ class MarkdownButtonCardInstance(CardReplier):
 
         if self.button_list is not None:
             sys_full_json_obj = {
-                "msgButtons": []
+                "msgButtons": self.button_list
             }
 
-            for button in self.button_list:
-                button_info = {
-                    "text": button[0],
-                    "url": button[1],
-                    "color": "gray",
-                }
-                sys_full_json_obj["msgButtons"].append(button_info)
             card_data["sys_full_json_obj"] = json.dumps(sys_full_json_obj)
 
         return card_data
@@ -112,7 +105,7 @@ class MarkdownButtonCardInstance(CardReplier):
         """
         回复markdown内容
         :param tips:
-        :param button_list:
+        :param button_list: [{"text":"text", "url":"url", "iosUrl":"iosUrl", "color":"gray"}]
         :param markdown:
         :return:
         """
@@ -122,7 +115,7 @@ class MarkdownButtonCardInstance(CardReplier):
     def update(self, markdown: str, button_list: list, tips: str = ""):
         """
         更新markdown内容，如果你reply了多次，这里只会更新最后一张卡片
-        :param button_list:
+        :param button_list:[{"text":"text", "url":"url", "iosUrl":"iosUrl", "color":"gray"}]
         :param tips:
         :param markdown:
         :return:
