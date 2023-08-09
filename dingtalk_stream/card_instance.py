@@ -355,14 +355,14 @@ class RPAPluginCardInstance(AICardReplier):
               plugin_id: str,
               plugin_version: str,
               plugin_name: str,
+              ability_name: str,
               plugin_args: dict,
               recipients: list = None):
         """
         回复markdown内容
+        :param ability_name:
         :param recipients:
         :param plugin_version:
-        :param corp_id:
-        :param goal:
         :param plugin_args:
         :param plugin_name:
         :param plugin_id:
@@ -373,7 +373,7 @@ class RPAPluginCardInstance(AICardReplier):
             "corpId": self.corp_id,
             "goal": self.goal,
             "plan": "(function(){dd.callPlugin({'pluginName':'%s','abilityName':'%s','args':%s });})()" % (
-                plugin_name, plugin_name, json.dumps(plugin_args)),
+                plugin_name, ability_name, json.dumps(plugin_args)),
             "planType": "jsCode",
             "pluginInstances": [{
                 "id": "AGI-EXTENSION-" + plugin_id,

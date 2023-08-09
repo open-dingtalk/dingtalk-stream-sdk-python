@@ -317,12 +317,14 @@ class ChatbotHandler(CallbackHandler):
                               plugin_id: str = "",
                               plugin_version: str = "",
                               plugin_name: str = "",
+                              ability_name: str = "",
                               plugin_args: dict = {},
                               goal: str = "",
                               corp_id: str = "",
                               recipients: list = None) -> RPAPluginCardInstance:
         """
         回复一个markdown卡片
+        :param ability_name:
         :param incoming_message:
         :param recipients:
         :param corp_id:
@@ -338,7 +340,7 @@ class ChatbotHandler(CallbackHandler):
         rpa_plugin_card_instance.set_goal(goal)
         rpa_plugin_card_instance.set_corp_id(corp_id)
 
-        rpa_plugin_card_instance.reply(plugin_id, plugin_version, plugin_name, plugin_args, recipients=recipients)
+        rpa_plugin_card_instance.reply(plugin_id, plugin_version, plugin_name, ability_name, plugin_args, recipients=recipients)
 
         return rpa_plugin_card_instance
 
