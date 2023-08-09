@@ -11,7 +11,7 @@ from .utils import DINGTALK_OPENAPI_ENDPOINT
 from concurrent.futures import ThreadPoolExecutor
 import uuid
 from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance, CarouselCardInstance, \
-    MarkdownButtonCardInstance
+    MarkdownButtonCardInstance, RPAPluginCardInstance
 import traceback
 
 
@@ -312,6 +312,35 @@ class ChatbotHandler(CallbackHandler):
         markdown_card_instance.reply(markdown, at_sender, at_all)
 
         return markdown_card_instance
+
+    def reply_rpa_plugin_card(self, incoming_message: ChatbotMessage,
+                              plugin_id: str = "",
+                              plugin_version: str = "",
+                              plugin_name: str = "",
+                              plugin_args: dict = {},
+                              goal: str = "",
+                              corp_id: str = "",
+                              recipients: list = None) -> RPAPluginCardInstance:
+        """
+        回复一个markdown卡片
+        :param incoming_message:
+        :param recipients:
+        :param corp_id:
+        :param goal:
+        :param plugin_args:
+        :param plugin_name:
+        :param plugin_version:
+        :param plugin_id:
+        :return:
+        """
+
+        rpa_plugin_card_instance = RPAPluginCardInstance(self.dingtalk_client, incoming_message)
+        rpa_plugin_card_instance.set_goal(goal)
+        rpa_plugin_card_instance.set_corp_id(corp_id)
+
+        rpa_plugin_card_instance.reply(plugin_id, plugin_version, plugin_name, plugin_args, recipients=recipients)
+
+        return rpa_plugin_card_instance
 
     def reply_markdown_button(self, incoming_message: ChatbotMessage, markdown: str, button_list: list, tips: str = "",
                               title: str = "", logo: str = "") -> MarkdownButtonCardInstance:

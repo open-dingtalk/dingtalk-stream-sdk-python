@@ -14,5 +14,5 @@ from .chatbot import AtUser
 from .chatbot import ChatbotHandler, AsyncChatbotHandler
 from .card_replier import AICardStatus, AICardReplier, CardReplier
 from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance, CarouselCardInstance, \
-    MarkdownButtonCardInstance
+    MarkdownButtonCardInstance, RPAPluginCardInstance
 from .card_callback import CardCallbackMessage, Card_Callback_Router_Topic
