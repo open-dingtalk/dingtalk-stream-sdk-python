@@ -334,3 +334,61 @@ class CarouselCardInstance(AICardReplier):
                                                           callback_type="STREAM")
 
         self.finish(self.card_instance_id, card_data)
+
+
+class RPAPluginCardInstance(AICardReplier):
+
+    def __init__(self, dingtalk_client, incoming_message):
+        super(RPAPluginCardInstance, self).__init__(dingtalk_client, incoming_message)
+        self.card_template_id = "7f538f6d-ebb7-4533-a9ac-61a32da094cf.schema"
+        self.card_instance_id = None
+        self.goal = ""
+        self.corp_id = ""
+
+    def set_goal(self, goal: str):
+        self.goal = goal
+
+    def set_corp_id(self, corp_id: str):
+        self.corp_id = corp_id
+
+    def reply(self,
+              plugin_id: str,
+              plugin_version: str,
+              plugin_name: str,
+              ability_name: str,
+              plugin_args: dict,
+              recipients: list = None):
+        """
+        回复markdown内容
+        :param ability_name:
+        :param recipients:
+        :param plugin_version:
+        :param plugin_args:
+        :param plugin_name:
+        :param plugin_id:
+        :return:
+        """
+
+        plan = {
+            "corpId": self.corp_id,
+            "goal": self.goal,
+            "plan": "(function(){dd.callPlugin({'pluginName':'%s','abilityName':'%s','args':%s });})()" % (
+                plugin_name, ability_name, json.dumps(plugin_args)),
+            "planType": "jsCode",
+            "pluginInstances": [{
+                "id": "AGI-EXTENSION-" + plugin_id,
+                "version": plugin_version
+            }]
+        }
+
+        card_data = {
+            "goal": self.goal,
+            "processFlag": "true",
+            "plan": json.dumps(plan)
+        }
+
+        self.card_instance_id = self.create_and_send_card(self.card_template_id,
+                                                          {"flowStatus": AICardStatus.PROCESSING},
+                                                          recipients=recipients)
+
+        self.finish(self.card_instance_id, card_data)

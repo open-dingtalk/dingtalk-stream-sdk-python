@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+import json
 import uuid
 
 import platform, requests, copy, hashlib
@@ -41,6 +42,8 @@ class CardReplier(object):
         """
         发送卡片，两步骤：创建+投放。
         https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
+        :param callback_route_key:
+        :param callback_type:
         :param recipients:
         :param card_template_id: 卡片模板ID
         :param card_data: 卡片数据
