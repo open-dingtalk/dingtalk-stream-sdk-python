@@ -309,7 +309,7 @@ class ChatbotHandler(CallbackHandler):
         markdown_card_instance = MarkdownCardInstance(self.dingtalk_client, incoming_message)
         markdown_card_instance.set_title_and_logo(title, logo)
 
-        markdown_card_instance.reply(markdown, at_sender, at_all)
+        markdown_card_instance.reply(markdown, at_sender=at_sender, at_all=at_all)
 
         return markdown_card_instance
 
@@ -340,7 +340,8 @@ class ChatbotHandler(CallbackHandler):
         rpa_plugin_card_instance.set_goal(goal)
         rpa_plugin_card_instance.set_corp_id(corp_id)
 
-        rpa_plugin_card_instance.reply(plugin_id, plugin_version, plugin_name, ability_name, plugin_args, recipients=recipients)
+        rpa_plugin_card_instance.reply(plugin_id, plugin_version, plugin_name, ability_name, plugin_args,
+                                       recipients=recipients)
 
         return rpa_plugin_card_instance
 
