@@ -84,8 +84,6 @@ class CardReplier(object):
             body["imGroupOpenSpaceModel"]["supportForward"] = False
             body["imRobotOpenSpaceModel"]["supportForward"] = False
 
-        print("############## ", support_forward)
-
         if callback_type == "STREAM":
             body["callbackType"] = "STREAM"
         elif callback_type == "HTTP":
