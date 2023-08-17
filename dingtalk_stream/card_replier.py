@@ -129,7 +129,7 @@ class CardReplier(object):
 
             # 增加托管extension
             if self.incoming_message.hosting_context is not None:
-                body["imGroupOpenSpaceModel"]["extension"] = {
+                body["imGroupOpenDeliverModel"]["extension"] = {
                     "hostingRepliedContext": json.dumps({
                         "userId": self.incoming_message.hosting_context.user_id
                     })
