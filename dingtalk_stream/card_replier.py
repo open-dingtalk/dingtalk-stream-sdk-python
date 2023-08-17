@@ -127,12 +127,27 @@ class CardReplier(object):
             if recipients is not None:
                 body["imGroupOpenDeliverModel"]["recipients"] = recipients
 
+            # 增加托管extension
+            if self.incoming_message.hosting_context is not None:
+                body["imGroupOpenSpaceModel"]["extension"] = {
+                    "hostingRepliedContext": json.dumps({
+                        "userId": self.incoming_message.hosting_context.user_id
+                    })
+                }
         elif self.incoming_message.conversation_type == '1':
             body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(spaceType="IM_ROBOT",
                                                                             spaceId=self.incoming_message.sender_staff_id)
             body["imRobotOpenDeliverModel"] = {
                 "spaceType": "IM_ROBOT"
             }
+
+            # 增加托管extension
+            if self.incoming_message.hosting_context is not None:
+                body["imRobotOpenDeliverModel"]["extension"] = {
+                    "hostingRepliedContext": json.dumps({
+                        "userId": self.incoming_message.hosting_context.user_id
+                    })
+                }
 
         # 投放卡片。https://open.dingtalk.com/document/orgapp/delivery-card-interface
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances/deliver'

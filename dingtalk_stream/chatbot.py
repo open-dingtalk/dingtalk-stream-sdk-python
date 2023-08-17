@@ -112,8 +112,26 @@ class RichTextContent(object):
         return result
 
 
+class HostingContext(object):
+    """
+    托管人的上下文
+    """
+
+    def __init__(self):
+        self.user_id = ""
+        self.nick = ""
+
+    def to_dict(self):
+        result = {
+            "userId": self.user_id,
+            "nick": self.nick,
+        }
+        return result
+
+
 class ChatbotMessage(object):
     TOPIC = '/v1.0/im/bot/messages/get'
+    DELEGATE_TOPIC = '/v1.0/im/bot/messages/delegate'
     text: TextContent
 
     def __init__(self):
@@ -138,6 +156,7 @@ class ChatbotMessage(object):
         self.image_content = None
         self.rich_text_content = None
         self.sender_staff_id = None
+        self.hosting_context = None
 
         self.extensions = {}
 
@@ -188,6 +207,10 @@ class ChatbotMessage(object):
                     msg.rich_text_content = RichTextContent.from_dict(d['content'])
             elif name == 'senderStaffId':
                 msg.sender_staff_id = value
+            elif name == 'hostingContext':
+                msg.hosting_context = HostingContext()
+                msg.hosting_context.user_id = value["userId"]
+                msg.hosting_context.nick = value["nick"]
             else:
                 msg.extensions[name] = value
         return msg
@@ -236,6 +259,8 @@ class ChatbotMessage(object):
             result['msgtype'] = self.message_type
         if self.sender_staff_id is not None:
             result['senderStaffId'] = self.sender_staff_id
+        if self.hosting_context is not None:
+            result['hostingContext'] = self.hosting_context.to_dict()
         return result
 
     def get_text_list(self):
@@ -361,6 +386,36 @@ class ChatbotHandler(CallbackHandler):
         markdown_button_instance.set_title_and_logo(title, logo)
 
         markdown_button_instance.reply(markdown, button_list, tips=tips)
+
+        return markdown_button_instance
+
+    def reply_ai_markdown_button(self,
+                                 incoming_message: ChatbotMessage,
+                                 markdown: str,
+                                 button_list: list,
+                                 tips: str = "",
+                                 title: str = "",
+                                 logo: str = "",
+                                 recipients: list = None,
+                                 support_forward: bool = True) -> AIMarkdownCardInstance:
+        """
+        回复一个带button的ai卡片
+        :param support_forward:
+        :param recipients:
+        :param tips:
+        :param incoming_message:
+        :param markdown:
+        :param button_list:
+        :param title:
+        :param logo:
+        :return:
+        """
+        markdown_button_instance = AIMarkdownCardInstance(self.dingtalk_client, incoming_message)
+        markdown_button_instance.set_title_and_logo(title, logo)
+
+        markdown_button_instance.ai_start(recipients=recipients, support_forward=support_forward)
+        markdown_button_instance.ai_streaming(markdown=markdown, append=True)
+        markdown_button_instance.ai_finish(markdown=markdown, button_list=button_list, tips=tips)
 
         return markdown_button_instance
 
