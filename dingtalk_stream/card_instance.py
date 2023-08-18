@@ -37,9 +37,16 @@ class MarkdownCardInstance(CardReplier):
 
         return card_data
 
-    def reply(self, markdown: str, at_sender: bool = False, at_all: bool = False):
+    def reply(self,
+              markdown: str,
+              at_sender: bool = False,
+              at_all: bool = False,
+              recipients: list = None,
+              support_forward: bool = True):
         """
         回复markdown内容
+        :param recipients:
+        :param support_forward:
         :param markdown:
         :param title:
         :param logo:
@@ -48,7 +55,9 @@ class MarkdownCardInstance(CardReplier):
         :return:
         """
         self.card_instance_id = self.create_and_send_card(self.card_template_id, self._get_card_data(markdown),
-                                                          at_sender=at_sender, at_all=at_all)
+                                                          at_sender=at_sender, at_all=at_all,
+                                                          recipients=recipients,
+                                                          support_forward=support_forward)
 
     def update(self, markdown: str):
         """
@@ -101,18 +110,29 @@ class MarkdownButtonCardInstance(CardReplier):
 
         return card_data
 
-    def reply(self, markdown: str, button_list: list, tips: str = ""):
+    def reply(self,
+              markdown: str,
+              button_list: list,
+              tips: str = "",
+              recipients: list = None,
+              support_forward: bool = True):
         """
         回复markdown内容
+        :param support_forward:
+        :param recipients:
         :param tips:
         :param button_list: [{"text":"text", "url":"url", "iosUrl":"iosUrl", "color":"gray"}]
         :param markdown:
         :return:
         """
         self.button_list = button_list
-        self.card_instance_id = self.create_and_send_card(self.card_template_id, self._get_card_data(markdown, tips))
+        self.card_instance_id = self.create_and_send_card(self.card_template_id, self._get_card_data(markdown, tips),
+                                                          recipients=recipients, support_forward=support_forward)
 
-    def update(self, markdown: str, button_list: list, tips: str = ""):
+    def update(self,
+               markdown: str,
+               button_list: list,
+               tips: str = ""):
         """
         更新markdown内容，如果你reply了多次，这里只会更新最后一张卡片
         :param button_list:[{"text":"text", "url":"url", "iosUrl":"iosUrl", "color":"gray"}]
@@ -147,12 +167,13 @@ class AIMarkdownCardInstance(AICardReplier):
         self.title = title
         self.logo = logo
 
-    def ai_start(self, recipients: list = None):
+    def ai_start(self, recipients: list = None, support_forward: bool = True):
         """
         开始执行中
         :return:
         """
-        self.card_instance_id = self.start(self.card_template_id, {}, recipients=recipients)
+        self.card_instance_id = self.start(self.card_template_id, {}, recipients=recipients,
+                                           support_forward=support_forward)
         self.inputing_status = False
 
     def ai_streaming(self, markdown: str, append: bool = False):
@@ -180,10 +201,12 @@ class AIMarkdownCardInstance(AICardReplier):
 
             order = [
                 "msgTitle",
-                "msgButtons",
-                "msgImages",
+                "msgContent",
+                "msgMarkdown"
                 "msgTextList",
-                "msgContent"
+                "msgImages",
+                "msgSlider",
+                "msgButtons",
             ]
 
             card_data["sys_full_json_obj"] = json.dumps({"order": order})
@@ -200,9 +223,14 @@ class AIMarkdownCardInstance(AICardReplier):
         self.streaming(self.card_instance_id, "msgContent", self.markdown, append=False, finished=False,
                        failed=False)
 
-    def ai_finish(self, markdown: str = ""):
+    def update(self, markdown: str = "", button_list: list = None, tips: str = ""):
+        return self.ai_finish(markdown=markdown, button_list=button_list, tips=tips)
+
+    def ai_finish(self, markdown: str = "", button_list: list = None, tips: str = ""):
         """
         完成态
+        :param tips:
+        :param button_list:
         :param markdown:
         :return:
         """
@@ -215,17 +243,29 @@ class AIMarkdownCardInstance(AICardReplier):
         else:
             self.markdown = markdown
 
-        order = [
-            "msgTitle",
-            "msgButtons",
-            "msgImages",
-            "msgTextList",
-            "msgContent"
-        ]
+        sys_full_json_obj = {
+            "order": [
+                "msgTitle",
+                "msgContent",
+                "msgMarkdown"
+                "msgTextList",
+                "msgImages",
+                "msgSlider",
+                "msgButtons",
+            ],
+        }
+
+        if button_list is not None and len(button_list) > 0:
+            sys_full_json_obj["msgButtons"] = button_list
+
+        if self.incoming_message.hosting_context is not None:
+            sys_full_json_obj["source"] = {
+                "text": "由{nick}的数字助理回答".format(nick=self.incoming_message.hosting_context.nick)
+            }
 
         card_data = {
             "msgContent": markdown,
-            "sys_full_json_obj": json.dumps({"order": order})
+            "sys_full_json_obj": json.dumps(sys_full_json_obj)
         }
 
         if self.title is not None and self.title != "":
@@ -280,9 +320,16 @@ class CarouselCardInstance(AICardReplier):
         """
         self.card_instance_id = self.start(self.card_template_id, {})
 
-    def reply(self, markdown: str, image_slider_list: list, button_text: str = "submit"):
+    def reply(self,
+              markdown: str,
+              image_slider_list: list,
+              button_text: str = "submit",
+              recipients: list = None,
+              support_forward: bool = True):
         """
         回复卡片
+        :param support_forward:
+        :param recipients:
         :param button_text:
         :param image_slider_list:
         :param markdown:
@@ -331,7 +378,8 @@ class CarouselCardInstance(AICardReplier):
 
         self.card_instance_id = self.create_and_send_card(self.card_template_id,
                                                           {"flowStatus": AICardStatus.PROCESSING},
-                                                          callback_type="STREAM")
+                                                          callback_type="STREAM", recipients=recipients,
+                                                          support_forward=support_forward)
 
         self.finish(self.card_instance_id, card_data)
 
@@ -357,9 +405,11 @@ class RPAPluginCardInstance(AICardReplier):
               plugin_name: str,
               ability_name: str,
               plugin_args: dict,
-              recipients: list = None):
+              recipients: list = None,
+              support_forward: bool = True):
         """
         回复markdown内容
+        :param support_forward:
         :param ability_name:
         :param recipients:
         :param plugin_version:
@@ -389,6 +439,6 @@ class RPAPluginCardInstance(AICardReplier):
 
         self.card_instance_id = self.create_and_send_card(self.card_template_id,
                                                           {"flowStatus": AICardStatus.PROCESSING},
-                                                          recipients=recipients)
+                                                          recipients=recipients, support_forward=support_forward)
 
         self.finish(self.card_instance_id, card_data)

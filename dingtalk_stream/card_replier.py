@@ -36,12 +36,19 @@ class CardReplier(object):
                            ) % platform.python_version(),
         }
 
-    def create_and_send_card(self, card_template_id: str, card_data: dict, callback_type: str = "",
-                             callback_route_key: str = "", at_sender: bool = False,
-                             at_all: bool = False, recipients: list = None) -> str:
+    def create_and_send_card(self,
+                             card_template_id: str,
+                             card_data: dict,
+                             callback_type: str = "",
+                             callback_route_key: str = "",
+                             at_sender: bool = False,
+                             at_all: bool = False,
+                             recipients: list = None,
+                             support_forward: bool = True) -> str:
         """
         发送卡片，两步骤：创建+投放。
         https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
+        :param support_forward:
         :param callback_route_key:
         :param callback_type:
         :param recipients:
@@ -66,12 +73,16 @@ class CardReplier(object):
                 "cardParamMap": card_data
             },
             "imGroupOpenSpaceModel": {
-                "supportForward": False
+                "supportForward": True
             },
             "imRobotOpenSpaceModel": {
-                "supportForward": False
+                "supportForward": True
             }
         }
+
+        if not support_forward:
+            body["imGroupOpenSpaceModel"]["supportForward"] = False
+            body["imRobotOpenSpaceModel"]["supportForward"] = False
 
         if callback_type == "STREAM":
             body["callbackType"] = "STREAM"
@@ -116,12 +127,27 @@ class CardReplier(object):
             if recipients is not None:
                 body["imGroupOpenDeliverModel"]["recipients"] = recipients
 
+            # 增加托管extension
+            if self.incoming_message.hosting_context is not None:
+                body["imGroupOpenDeliverModel"]["extension"] = {
+                    "hostingRepliedContext": json.dumps({
+                        "userId": self.incoming_message.hosting_context.user_id
+                    })
+                }
         elif self.incoming_message.conversation_type == '1':
             body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(spaceType="IM_ROBOT",
                                                                             spaceId=self.incoming_message.sender_staff_id)
             body["imRobotOpenDeliverModel"] = {
                 "spaceType": "IM_ROBOT"
             }
+
+            # 增加托管extension
+            if self.incoming_message.hosting_context is not None:
+                body["imRobotOpenDeliverModel"]["extension"] = {
+                    "hostingRepliedContext": json.dumps({
+                        "userId": self.incoming_message.hosting_context.user_id
+                    })
+                }
 
         # 投放卡片。https://open.dingtalk.com/document/orgapp/delivery-card-interface
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances/deliver'
@@ -184,9 +210,14 @@ class AICardReplier(CardReplier):
     def __init__(self, dingtalk_client, incoming_message):
         super(AICardReplier, self).__init__(dingtalk_client, incoming_message)
 
-    def start(self, card_template_id: str, card_data: dict, recipients: list = None) -> str:
+    def start(self,
+              card_template_id: str,
+              card_data: dict,
+              recipients: list = None,
+              support_forward: bool = True) -> str:
         """
         AI卡片的创建接口
+        :param support_forward:
         :param recipients:
         :param card_template_id:
         :param card_data:
@@ -195,7 +226,7 @@ class AICardReplier(CardReplier):
         card_data_with_status = copy.deepcopy(card_data)
         card_data_with_status["flowStatus"] = AICardStatus.PROCESSING
         return self.create_and_send_card(card_template_id, card_data_with_status, at_sender=False, at_all=False,
-                                         recipients=recipients)
+                                         recipients=recipients, support_forward=support_forward)
 
     def finish(self, card_instance_id: str, card_data: dict):
         """
