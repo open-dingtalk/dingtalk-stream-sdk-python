@@ -229,7 +229,6 @@ class AIMarkdownCardInstance(AICardReplier):
                      append: bool = False):
         """
         打字机模式
-        :param order:
         :param append: 两种更新模式，append=true，追加的方式；append=false，全量替换。
         :param markdown:
         :return:
@@ -253,10 +252,10 @@ class AIMarkdownCardInstance(AICardReplier):
 
     def ai_finish(self,
                   markdown: str = None,
+                  button_list: list = None,
                   tips: str = ""):
         """
         完成态
-        :param order:
         :param tips:
         :param button_list:
         :param markdown:
@@ -268,6 +267,9 @@ class AIMarkdownCardInstance(AICardReplier):
 
         if markdown is not None:
             self.markdown = markdown
+
+        if button_list is not None:
+            self.button_list = button_list
 
         self.finish(self.card_instance_id, self.get_card_data())
 
