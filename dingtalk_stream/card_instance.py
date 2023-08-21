@@ -161,22 +161,72 @@ class AIMarkdownCardInstance(AICardReplier):
         self.title = None
         self.logo = None
         self.markdown = ""
+        self.static_markdown = ""
+        self.button_list = None
         self.inputing_status = False
+        self.order = [
+            "msgTitle",
+            "msgContent",
+            "staticMsgContent",
+            "msgTextList",
+            "msgImages",
+            "msgSlider",
+            "msgButtons",
+        ]
 
     def set_title_and_logo(self, title: str, logo: str):
         self.title = title
         self.logo = logo
+
+    def set_order(self, order: list):
+        self.order = order
+
+    def get_card_data(self, flow_status=None):
+        card_data = {
+            "msgContent": self.markdown,
+            "staticMsgContent": self.static_markdown,
+        }
+
+        if flow_status is not None:
+            card_data["flowStatus"] = flow_status
+
+        if self.title is not None and self.title != "":
+            card_data["msgTitle"] = self.title
+
+        if self.logo is not None and self.logo != "":
+            card_data["logo"] = self.logo
+
+        sys_full_json_obj = {
+            "order": self.order,
+        }
+
+        if self.button_list is not None and len(self.button_list) > 0:
+            sys_full_json_obj["msgButtons"] = self.button_list
+
+        if self.incoming_message.hosting_context is not None:
+            sys_full_json_obj["source"] = {
+                "text": "由{nick}的数字助理回答".format(nick=self.incoming_message.hosting_context.nick)
+            }
+
+        card_data["sys_full_json_obj"] = json.dumps(sys_full_json_obj)
+
+        return card_data
 
     def ai_start(self, recipients: list = None, support_forward: bool = True):
         """
         开始执行中
         :return:
         """
+        if self.card_instance_id is not None and self.card_instance_id != "":
+            return
+
         self.card_instance_id = self.start(self.card_template_id, {}, recipients=recipients,
                                            support_forward=support_forward)
         self.inputing_status = False
 
-    def ai_streaming(self, markdown: str, append: bool = False):
+    def ai_streaming(self,
+                     markdown: str,
+                     append: bool = False):
         """
         打字机模式
         :param append: 两种更新模式，append=true，追加的方式；append=false，全量替换。
@@ -188,30 +238,7 @@ class AIMarkdownCardInstance(AICardReplier):
             return
 
         if not self.inputing_status:
-            card_data = {
-                "flowStatus": AICardStatus.INPUTING,
-                "msgContent": ""
-            }
-
-            if self.title is not None and self.title != "":
-                card_data["msgTitle"] = self.title
-
-            if self.logo is not None and self.logo != "":
-                card_data["logo"] = self.logo
-
-            order = [
-                "msgTitle",
-                "msgContent",
-                "msgMarkdown"
-                "msgTextList",
-                "msgImages",
-                "msgSlider",
-                "msgButtons",
-            ]
-
-            card_data["sys_full_json_obj"] = json.dumps({"order": order})
-
-            self.put_card_data(self.card_instance_id, card_data)
+            self.put_card_data(self.card_instance_id, self.get_card_data(AICardStatus.INPUTING))
 
             self.inputing_status = True
 
@@ -223,10 +250,10 @@ class AIMarkdownCardInstance(AICardReplier):
         self.streaming(self.card_instance_id, "msgContent", self.markdown, append=False, finished=False,
                        failed=False)
 
-    def update(self, markdown: str = "", button_list: list = None, tips: str = ""):
-        return self.ai_finish(markdown=markdown, button_list=button_list, tips=tips)
-
-    def ai_finish(self, markdown: str = "", button_list: list = None, tips: str = ""):
+    def ai_finish(self,
+                  markdown: str = None,
+                  button_list: list = None,
+                  tips: str = ""):
         """
         完成态
         :param tips:
@@ -238,43 +265,36 @@ class AIMarkdownCardInstance(AICardReplier):
             self.logger.error('AIMarkdownCardInstance.ai_finish failed, you should send card first.')
             return
 
-        if markdown == "" or markdown is None:
-            markdown = self.markdown
-        else:
+        if markdown is not None:
             self.markdown = markdown
 
-        sys_full_json_obj = {
-            "order": [
-                "msgTitle",
-                "msgContent",
-                "msgMarkdown"
-                "msgTextList",
-                "msgImages",
-                "msgSlider",
-                "msgButtons",
-            ],
-        }
+        if button_list is not None:
+            self.button_list = button_list
 
-        if button_list is not None and len(button_list) > 0:
-            sys_full_json_obj["msgButtons"] = button_list
+        self.finish(self.card_instance_id, self.get_card_data())
 
-        if self.incoming_message.hosting_context is not None:
-            sys_full_json_obj["source"] = {
-                "text": "由{nick}的数字助理回答".format(nick=self.incoming_message.hosting_context.nick)
-            }
+    def update(self,
+               static_markdown: str = None,
+               button_list: list = None,
+               tips: str = ""):
+        """
+        非流式内容输出
+        :param static_markdown:
+        :param button_list:
+        :param tips:
+        :return:
+        """
+        if self.card_instance_id is None or self.card_instance_id == "":
+            self.logger.error('AIMarkdownCardInstance.update failed, you should send card first.')
+            return
 
-        card_data = {
-            "msgContent": markdown,
-            "sys_full_json_obj": json.dumps(sys_full_json_obj)
-        }
+        if button_list is not None:
+            self.button_list = button_list
 
-        if self.title is not None and self.title != "":
-            card_data["msgTitle"] = self.title
+        if static_markdown is not None:
+            self.static_markdown = static_markdown
 
-        if self.logo is not None and self.logo != "":
-            card_data["logo"] = self.logo
-
-        self.finish(self.card_instance_id, card_data)
+        self.finish(self.card_instance_id, self.get_card_data())
 
     def ai_fail(self):
         """
@@ -339,7 +359,7 @@ class CarouselCardInstance(AICardReplier):
         sys_full_json_obj = {
             "order": [
                 "msgTitle",
-                "msgMarkdown",
+                "staticMsgContent",
                 "msgSlider",
                 "msgImages",
                 "msgTextList",
@@ -366,7 +386,7 @@ class CarouselCardInstance(AICardReplier):
             })
 
         card_data = {
-            "msgMarkdown": markdown,
+            "staticMsgContent": markdown,
             "sys_full_json_obj": json.dumps(sys_full_json_obj)
         }
 
