@@ -71,7 +71,7 @@ def main():
 
     card_bot_handler = CardBotHandler(logger)
 
-    client.register_callback_hanlder(dingtalk_stream.chatbot.ChatbotMessage.TOPIC, card_bot_handler)
+    client.register_callback_handler(dingtalk_stream.chatbot.ChatbotMessage.TOPIC, card_bot_handler)
 
     card_bot_handler.set_off_duty_prompt("不好意思，我已下班，请稍后联系我！")
 

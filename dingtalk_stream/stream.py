@@ -46,7 +46,7 @@ class DingTalkStreamClient(object):
         self.event_handler = handler
         self._is_event_required = True
 
-    def register_callback_hanlder(self, topic, handler: CallbackHandler):
+    def register_callback_handler(self, topic, handler: CallbackHandler):
         handler.dingtalk_client = self
         self.callback_handler_map[topic] = handler
 
