@@ -61,7 +61,7 @@ def main():
 
     credential = dingtalk_stream.Credential(options.client_id, options.client_secret)
     client = dingtalk_stream.DingTalkStreamClient(credential)
-    client.register_callback_hanlder(dingtalk_stream.CallbackHandler.TOPIC_CARD_CALLBACK,
+    client.register_callback_handler(dingtalk_stream.CallbackHandler.TOPIC_CARD_CALLBACK,
                                      CardCallbackHandler(logger))
     client.start_forever()
 
