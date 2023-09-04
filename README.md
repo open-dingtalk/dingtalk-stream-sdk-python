@@ -4,6 +4,13 @@ Python SDK for DingTalk Stream Mode API, Compared with the webhook mode, it is e
 
 钉钉支持 Stream 模式接入事件推送、机器人收消息以及卡片回调，该 SDK 实现了 Stream 模式。相比 Webhook 模式，Stream 模式可以更简单的接入各类事件和回调。
 
+## 特别说明
+
+注意：
+
+* 因拼写错误，从旧版本升级到 v0.13.0 时候，需要将 register_callback_hanlder 修改为 register_callback_handler 
+
+
 ## 快速开始
 
 ### 准备工作
