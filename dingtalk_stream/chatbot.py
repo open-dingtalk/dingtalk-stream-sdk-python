@@ -129,6 +129,32 @@ class HostingContext(object):
         return result
 
 
+class ConversationMessage(object):
+    """
+    历史消息状态
+    """
+
+    def __init__(self):
+        self.read_status = ""
+        self.sender_user_id = ""
+        self.send_time = 0
+
+    def read_by_me(self) -> bool:
+        """
+        消息是否被我已读
+        :return:
+        """
+        return self.read_status == "2"
+
+    def to_dict(self):
+        result = {
+            "readStatus": self.read_status,
+            "senderUserId": self.sender_user_id,
+            "sendTime": self.send_time
+        }
+        return result
+
+
 class ChatbotMessage(object):
     TOPIC = '/v1.0/im/bot/messages/get'
     DELEGATE_TOPIC = '/v1.0/im/bot/messages/delegate'
@@ -157,6 +183,7 @@ class ChatbotMessage(object):
         self.rich_text_content = None
         self.sender_staff_id = None
         self.hosting_context = None
+        self.conversation_msg_context = None
 
         self.extensions = {}
 
@@ -211,6 +238,15 @@ class ChatbotMessage(object):
                 msg.hosting_context = HostingContext()
                 msg.hosting_context.user_id = value["userId"]
                 msg.hosting_context.nick = value["nick"]
+            elif name == 'conversationMsgContext':
+                msg.conversation_msg_context = []
+                for v in value:
+                    conversation_msg = ConversationMessage()
+                    conversation_msg.read_status = v["readStatus"]
+                    conversation_msg.send_time = v["sendTime"]
+                    conversation_msg.sender_user_id = v["senderUserId"]
+
+                    msg.conversation_msg_context.append(conversation_msg)
             else:
                 msg.extensions[name] = value
         return msg
@@ -261,6 +297,8 @@ class ChatbotMessage(object):
             result['senderStaffId'] = self.sender_staff_id
         if self.hosting_context is not None:
             result['hostingContext'] = self.hosting_context.to_dict()
+        if self.conversation_msg_context is not None:
+            result['conversationMsgContext'] = [v.to_dict() for v in self.conversation_msg_context]
         return result
 
     def get_text_list(self):
