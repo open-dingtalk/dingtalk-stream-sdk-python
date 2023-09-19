@@ -117,6 +117,8 @@ class DingTalkStreamClient(object):
         while True:
             try:
                 asyncio.run(self.start())
+            except KeyboardInterrupt:
+                break
             except (asyncio.exceptions.CancelledError,
                     websockets.exceptions.ConnectionClosedError) as e:
                 self.logger.error('network exception, error=%s', e)
