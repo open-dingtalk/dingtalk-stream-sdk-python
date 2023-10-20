@@ -151,6 +151,7 @@ class DingTalkStreamClient(object):
             'localIp': self.get_host_ip()
         }).encode('utf-8')
 
+        http_body = None
         try:
             response = requests.post(DingTalkStreamClient.OPEN_CONNECTION_API,
                                      headers=request_headers,
