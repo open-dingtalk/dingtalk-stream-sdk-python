@@ -229,4 +229,7 @@ class DingTalkStreamClient(object):
         except Exception as e:
             self.logger.error('upload to dingtalk failed, error=%s', e)
             return None
+        if 'media_id' not in response.json():
+            self.logger.error('upload to dingtalk failed, error resonse is %s', response.json())
+            raise Exception('upload failed, error=%s' % response.json())
         return response.json()['media_id']
