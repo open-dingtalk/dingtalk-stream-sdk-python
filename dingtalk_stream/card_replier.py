@@ -66,7 +66,6 @@ class CardReplier(object):
 
         card_instance_id = self.gen_card_id(self.incoming_message)
         body = {
-            # "userId": self.dingtalk_client.credential.client_id,
             "cardTemplateId": card_template_id,
             "outTrackId": card_instance_id,
             "cardData": {
@@ -163,12 +162,13 @@ class CardReplier(object):
             self.logger.error('put_card_data.create_and_send_card failed, send card failed, error=%s', e)
             return ""
 
-    def put_card_data(self, card_instance_id: str, card_data: dict):
+    def put_card_data(self, card_instance_id: str, card_data: dict, **kwargs):
         """
         更新卡片内容
         https://open.dingtalk.com/document/orgapp/interactive-card-update-interface
         :param card_instance_id:
         :param card_data:
+        :param kwargs: 其他参数，如 privateData、cardUpdateOptions、userIdType
         :return:
         """
         access_token = self.dingtalk_client.get_access_token()
@@ -181,7 +181,8 @@ class CardReplier(object):
             "outTrackId": card_instance_id,
             "cardData": {
                 "cardParamMap": card_data
-            }
+            },
+            **kwargs,
         }
 
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances'
