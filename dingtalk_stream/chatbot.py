@@ -182,7 +182,7 @@ class ChatbotMessage(object):
         self.image_content = None
         self.rich_text_content = None
         self.sender_staff_id = None
-        self.hosting_context = None
+        self.hosting_context: HostingContext = None
         self.conversation_msg_context = None
 
         self.extensions = {}
@@ -669,14 +669,16 @@ class ChatbotHandler(CallbackHandler):
                    card_data: dict,
                    incoming_message: ChatbotMessage,
                    at_sender: bool = False,
-                   at_all: bool = False) -> str:
+                   at_all: bool = False,
+                   **kwargs) -> str:
         """
-        回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
+        机器人回复互动卡片。由于 sessionWebhook 不支持发送互动卡片，所以需要使用 OpenAPI，当前仅支持自建应用。
         https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
-        :param card_data: 卡片数据内容，interactive_card.py中有一些简单的样例，高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
+        :param card_data: 卡片数据内容，interactive_card.py 中有一些简单的样例，高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
         :param incoming_message: 回调数据源
         :param at_sender: 是否at发送人
         :param at_all: 是否at所有人
+        :param kwargs: 其他参数，具体可参考文档。
         :return:
         """
         access_token = self.dingtalk_client.get_access_token()
@@ -695,17 +697,18 @@ class ChatbotHandler(CallbackHandler):
         }
 
         card_biz_id = self._gen_card_id(incoming_message)
-        body = {"cardTemplateId": "StandardCard",
-                "robotCode": self.dingtalk_client.credential.client_id,
-                "cardData": json.dumps(card_data),
-                "sendOptions": {
-                    # "atUserListJson": "String",
-                    # "atAll": at_all,
-                    # "receiverListJson": "String",
-                    # "cardPropertyJson": "String"
-                },
-                "cardBizId": card_biz_id
-                }
+        body = {
+            "cardTemplateId": "StandardCard",
+            "robotCode": self.dingtalk_client.credential.client_id,
+            "cardData": json.dumps(card_data),
+            "sendOptions": {
+                # "atUserListJson": "String",
+                # "atAll": at_all,
+                # "receiverListJson": "String",
+                # "cardPropertyJson": "String"
+            },
+            "cardBizId": card_biz_id,
+        }
 
         if incoming_message.conversation_type == '2':
             body["openConversationId"] = incoming_message.conversation_id
@@ -728,6 +731,7 @@ class ChatbotHandler(CallbackHandler):
                 }
             ]
             body["sendOptions"]["atUserListJson"] = json.dumps(user_list_json, ensure_ascii=False)
+        body.update(**kwargs)
 
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/im/v1.0/robot/interactiveCards/send'
         try:
@@ -743,10 +747,10 @@ class ChatbotHandler(CallbackHandler):
 
     def update_card(self, card_biz_id: str, card_data: dict):
         """
-        回复互动卡片。由于sessionWebhook不支持发送互动卡片，所以需要使用OpenAPI，当前仅支持自建应用。
-        https://open.dingtalk.com/document/orgapp/robots-send-interactive-cards
-        :param card_data: 卡片数据内容，interactive_card.py中有一些简单的样例，高阶需求请至卡片搭建平台：https://card.dingtalk.com/card-builder
-        :param incoming_message: 回调数据源，主要是为了取到card_biz_id
+        更新机器人发送互动卡片（普通版）。
+        https://open.dingtalk.com/document/orgapp/update-the-robot-to-send-interactive-cards
+        :param card_biz_id: 唯一标识一张卡片的外部ID（卡片幂等ID，可用于更新或重复发送同一卡片到多个群会话）。需与 self.reply_card 接口返回的 card_biz_id 保持一致。
+        :param card_data: 要更新的卡片数据内容。详情参考卡片搭建平台：https://card.dingtalk.com/card-builder
         :return:
         """
         access_token = self.dingtalk_client.get_access_token()
