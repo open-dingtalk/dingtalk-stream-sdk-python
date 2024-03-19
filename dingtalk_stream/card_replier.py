@@ -24,7 +24,7 @@ class CardReplier(object):
         self.logger = setup_default_logger('dingtalk_stream.handler')
 
     @staticmethod
-    def gen_card_id(msg):
+    def gen_card_id(msg: 'ChatbotMessage'):
         factor = '%s_%s_%s_%s_%s' % (
             msg.sender_id, msg.sender_corp_id, msg.conversation_id, msg.message_id, str(uuid.uuid1()))
         m = hashlib.sha256()
