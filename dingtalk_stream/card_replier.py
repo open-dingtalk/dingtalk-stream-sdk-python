@@ -4,17 +4,21 @@ import uuid
 
 import platform, requests, copy, hashlib
 from .utils import DINGTALK_OPENAPI_ENDPOINT
-from .chatbot import ChatbotMessage
-from .stream import DingTalkStreamClient
 from .log import setup_default_logger
 from enum import Enum, unique
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .chatbot import ChatbotMessage
+    from .stream import DingTalkStreamClient
 
 
 class CardReplier(object):
 
-    def __init__(self, dingtalk_client: DingTalkStreamClient, incoming_message: ChatbotMessage):
-        self.dingtalk_client: DingTalkStreamClient = dingtalk_client
-        self.incoming_message: ChatbotMessage = incoming_message
+    def __init__(self, dingtalk_client: 'DingTalkStreamClient', incoming_message: 'ChatbotMessage'):
+        self.dingtalk_client: 'DingTalkStreamClient' = dingtalk_client
+        self.incoming_message: 'ChatbotMessage' = incoming_message
         self.conversation_type = incoming_message.conversation_type
         self.open_conversation_id = incoming_message
         self.logger = setup_default_logger('dingtalk_stream.handler')
