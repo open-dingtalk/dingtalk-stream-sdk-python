@@ -1,19 +1,20 @@
-import json
-
 from .frames import Headers
 from .frames import AckMessage
 from .frames import SystemMessage
 from .frames import EventMessage
 from .frames import CallbackMessage
-from .stream import DingTalkStreamClient
 from .log import setup_default_logger
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .stream import DingTalkStreamClient
 
 class CallbackHandler(object):
     TOPIC_CARD_CALLBACK = '/v1.0/card/instances/callback'
 
     def __init__(self):
-        self.dingtalk_client: DingTalkStreamClient = None
+        self.dingtalk_client: 'DingTalkStreamClient' = None
         self.logger = setup_default_logger('dingtalk_stream.handler')
 
     def pre_start(self):
@@ -34,7 +35,7 @@ class CallbackHandler(object):
 
 class EventHandler(object):
     def __init__(self):
-        self.dingtalk_client: DingTalkStreamClient = None
+        self.dingtalk_client: 'DingTalkStreamClient' = None
         self.logger = setup_default_logger('dingtalk_stream.handler')
 
     def pre_start(self):
@@ -56,13 +57,13 @@ class EventHandler(object):
 
 class SystemHandler(object):
     def __init__(self):
-        self.dingtalk_client: DingTalkStreamClient = None
+        self.dingtalk_client: 'DingTalkStreamClient' = None
         self.logger = setup_default_logger('dingtalk_stream.handler')
 
     def pre_start(self):
         return
 
-    async def process(self, message):
+    async def process(self, message: SystemMessage):
         return AckMessage.STATUS_OK, 'OK'
 
     async def raw_process(self, system_message: SystemMessage):
