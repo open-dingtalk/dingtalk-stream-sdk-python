@@ -104,7 +104,7 @@ class CardReplier(object):
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error('CardResponder.send_card failed, create card instance failed, error=%s', e)
+            self.logger.error(f'CardResponder.send_card failed, create card instance failed, error={e}, response.text={response.text}')
             return ""
 
         body = {
@@ -165,7 +165,7 @@ class CardReplier(object):
 
             return card_instance_id
         except Exception as e:
-            self.logger.error('put_card_data.create_and_send_card failed, send card failed, error=%s', e)
+            self.logger.error(f'put_card_data.create_and_send_card failed, send card failed, error={e}, response.text={response.text}')
             return ""
 
     def put_card_data(self, card_instance_id: str, card_data: dict, **kwargs):
@@ -199,7 +199,7 @@ class CardReplier(object):
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error('CardReplier.put_card_data failed, update card failed, error=%s', e)
+            self.logger.error(f'CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text}')
             return
 
 
@@ -293,5 +293,5 @@ class AICardReplier(CardReplier):
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error('AICardReplier.streaming failed, error=%s', e)
+            self.logger.error(f'AICardReplier.streaming failed, error={e}, response.text={response.text}')
             return
