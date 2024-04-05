@@ -3,6 +3,7 @@
 """
 这里提供了一些常用的卡片模板及其封装类
 """
+import time
 
 from .card_replier import CardReplier, AICardReplier, AICardStatus
 import json
@@ -58,6 +59,8 @@ class MarkdownCardInstance(CardReplier):
                                                           at_sender=at_sender, at_all=at_all,
                                                           recipients=recipients,
                                                           support_forward=support_forward)
+
+        self.update(markdown)
 
     def update(self, markdown: str):
         """
@@ -183,9 +186,13 @@ class AIMarkdownCardInstance(AICardReplier):
 
     def get_card_data(self, flow_status=None):
         card_data = {
-            "msgContent": self.markdown,
+            "subItem": "msgContent",
+            "msgContent": "",
             "staticMsgContent": self.static_markdown,
         }
+
+        if self.markdown != '' and self.markdown is not None:
+            card_data['msgContent'] = self.markdown
 
         if flow_status is not None:
             card_data["flowStatus"] = flow_status
@@ -270,6 +277,9 @@ class AIMarkdownCardInstance(AICardReplier):
 
         if button_list is not None:
             self.button_list = button_list
+
+        self.streaming(self.card_instance_id, "msgContent", self.markdown, append=False, finished=True,
+                       failed=False)
 
         self.finish(self.card_instance_id, self.get_card_data())
 

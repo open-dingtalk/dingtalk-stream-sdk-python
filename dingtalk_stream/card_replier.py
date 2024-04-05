@@ -42,15 +42,62 @@ class CardReplier(object):
                            ) % platform.python_version(),
         }
 
-    def create_and_send_card(self,
-                             card_template_id: str,
-                             card_data: dict,
-                             callback_type: str = "",
-                             callback_route_key: str = "",
-                             at_sender: bool = False,
-                             at_all: bool = False,
-                             recipients: list = None,
-                             support_forward: bool = True) -> str:
+    def create_and_send_card(self, *args, **kwargs) -> str:
+        if self.incoming_message.is_ai_assistant:
+            return self.assistant_card_send(*args, **kwargs)
+        else:
+            return self.chatbot_create_and_send_card(*args, **kwargs)
+
+    def assistant_card_send(self,
+                            card_template_id: str,
+                            card_data: dict, *args, **kwargs) -> str:
+        """
+        助理发送卡片，两步骤：创建+投放。
+        https://open.dingtalk.com/document/ai-dev/ai-assistant-messaging-active-sending-mode
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error(
+                'CardResponder.send_card failed, cannot get dingtalk access token')
+            return ""
+
+        body = {
+            "conversationType": 'private_chat', #TODO 暂时只支持单聊
+            "openConversationId": self.incoming_message.conversation_id,
+            "unionId": self.incoming_message.sender_id,
+            "contentType": "ai_card",
+        }
+
+        content = {
+            "templateId": card_template_id,
+            "cardData": {}
+        }
+        body['content'] = json.dumps(content)
+
+        conversation_token = ""
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/aiInteraction/prepare'
+        try:
+            response = requests.post(url,
+                                     headers=self.get_request_header(access_token),
+                                     json=body)
+
+            response.raise_for_status()
+
+            return response.json()['result']['conversationToken']
+        except Exception as e:
+            self.logger.error('aiInteraction_prepare failed, send card failed, error=%s', e)
+            return ""
+
+    def chatbot_create_and_send_card(self,
+                                     card_template_id: str,
+                                     card_data: dict,
+                                     callback_type: str = "",
+                                     callback_route_key: str = "",
+                                     at_sender: bool = False,
+                                     at_all: bool = False,
+                                     recipients: list = None,
+                                     support_forward: bool = True) -> str:
         """
         发送卡片，两步骤：创建+投放。
         https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
@@ -168,7 +215,48 @@ class CardReplier(object):
             self.logger.error('put_card_data.create_and_send_card failed, send card failed, error=%s', e)
             return ""
 
-    def put_card_data(self, card_instance_id: str, card_data: dict, **kwargs):
+    def put_card_data(self, *args, **kwargs) -> str:
+        if self.incoming_message.is_ai_assistant:
+            self.assistant_put_card_data(*args, **kwargs)
+        else:
+            self.chatbot_put_card_data(*args, **kwargs)
+
+    def assistant_put_card_data(self, conversation_token: str, card_data: dict, *args, **kwargs):
+        """
+        助理发送卡片，两步骤：创建+投放。
+        https://open.dingtalk.com/document/ai-dev/ai-assistant-messaging-active-sending-mode
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error(
+                'CardResponder.send_card failed, cannot get dingtalk access token')
+            return ""
+
+        body = {
+            "conversationToken": conversation_token,
+            "contentType": "ai_card",
+        }
+
+        if 'flowStatus' in card_data:
+            del (card_data['flowStatus'])
+        content = {
+            "templateId": self.card_template_id,
+            "cardData": card_data
+        }
+        body['content'] = json.dumps(content)
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/aiInteraction/update'
+        try:
+            response = requests.post(url,
+                                     headers=self.get_request_header(access_token),
+                                     json=body)
+
+            response.raise_for_status()
+        except Exception as e:
+            self.logger.error('aiInteraction_update failed, send card failed, error=%s', e)
+            return ""
+
+    def chatbot_put_card_data(self, card_instance_id: str, card_data: dict, *args, **kwargs):
         """
         更新卡片内容
         https://open.dingtalk.com/document/orgapp/interactive-card-update-interface
@@ -235,30 +323,78 @@ class AICardReplier(CardReplier):
         return self.create_and_send_card(card_template_id, card_data_with_status, at_sender=False, at_all=False,
                                          recipients=recipients, support_forward=support_forward)
 
-    def finish(self, card_instance_id: str, card_data: dict):
+    def finish(self, card_instance_id: str, card_data: dict, **kwargs):
         """
         AI卡片执行完成的接口，整体更新
         :param card_instance_id:
         :param card_data:
         :return:
         """
-        card_data_with_status = copy.deepcopy(card_data)
-        card_data_with_status["flowStatus"] = AICardStatus.FINISHED
-        self.put_card_data(card_instance_id, card_data_with_status)
+        if self.incoming_message.is_ai_assistant:
+            self.assistant_put_card_data(card_instance_id, card_data, **kwargs)
+        else:
+            card_data_with_status = copy.deepcopy(card_data)
+            card_data_with_status["flowStatus"] = AICardStatus.FINISHED
+            self.put_card_data(card_instance_id, card_data_with_status, **kwargs)
 
-    def fail(self, card_instance_id: str, card_data: dict):
+    def fail(self, card_instance_id: str, card_data: dict, **kwargs):
         """
         AI卡片变成失败状态的接口，整体更新，非streaming
         :param card_instance_id:
         :param card_data:
         :return:
         """
-        card_data_with_status = copy.deepcopy(card_data)
-        card_data_with_status["flowStatus"] = AICardStatus.FAILED
-        self.put_card_data(card_instance_id, card_data_with_status)
+        if self.incoming_message.is_ai_assistant:
+            self.put_card_data(card_instance_id, card_data, **kwargs)
+        else:
+            card_data_with_status = copy.deepcopy(card_data)
+            card_data_with_status["flowStatus"] = AICardStatus.FAILED
+            self.put_card_data(card_instance_id, card_data_with_status, **kwargs)
 
-    def streaming(self, card_instance_id: str, content_key: str, content_value: str, append: bool, finished: bool,
-                  failed: bool):
+    def streaming(self, *args, **kwargs) -> str:
+        if self.incoming_message.is_ai_assistant:
+            self.assistant_streaming(*args, **kwargs)
+        else:
+            self.chatbot_streaming(*args, **kwargs)
+
+    def assistant_streaming(self, conversation_token: str, content_key: str, content_value: str, append: bool,
+                            finished: bool, failed: bool, **kwargs):
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error(
+                'AICardReplier.streaming failed, cannot get dingtalk access token')
+            return None
+
+        body = {
+            "conversationToken": conversation_token,
+            "contentType": "ai_card",
+        }
+
+        content = {
+            "templateId": self.card_template_id,
+            "cardData": {
+                #"flowStatus": 2,
+                "key": content_key,
+                "value": content_value,
+                "isFinalize": finished,
+            }
+        }
+        body['content'] = json.dumps(content)
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/aiInteraction/update'
+        try:
+            response = requests.post(url,
+                                     headers=self.get_request_header(access_token),
+                                     json=body)
+
+            response.raise_for_status()
+        except Exception as e:
+            self.logger.error('aiInteraction_update failed, send card failed, error=%s', e)
+            return ""
+
+    def chatbot_streaming(self, card_instance_id: str, content_key: str, content_value: str, append: bool,
+                          finished: bool,
+                          failed: bool):
         """
         AI卡片的流式输出
         :param card_instance_id:
@@ -295,3 +431,29 @@ class AICardReplier(CardReplier):
         except Exception as e:
             self.logger.error('AICardReplier.streaming failed, error=%s', e)
             return
+
+    def assistant_finish_card_data(self, conversation_token: str):
+        """
+        助理发送卡片，两步骤：创建+投放。
+        https://open.dingtalk.com/document/ai-dev/ai-assistant-messaging-active-sending-mode
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error(
+                'CardResponder.send_card failed, cannot get dingtalk access token')
+            return ""
+
+        body = {
+            "conversationToken": conversation_token,
+        }
+
+        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/aiInteraction/finish'
+        try:
+            response = requests.post(url,
+                                     headers=self.get_request_header(access_token),
+                                     json=body)
+
+            response.raise_for_status()
+        except Exception as e:
+            self.logger.error('aiInteraction_finish failed, send card failed, error=%s', e)
+            return ""

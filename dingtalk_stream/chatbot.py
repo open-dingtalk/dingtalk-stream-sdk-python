@@ -184,11 +184,42 @@ class ChatbotMessage(object):
         self.sender_staff_id = None
         self.hosting_context: HostingContext = None
         self.conversation_msg_context = None
+        self.conversation_token = None
+        self.is_ai_assistant = False
 
         self.extensions = {}
 
     @classmethod
     def from_dict(cls, d):
+        if ('headers' in d) and ('requestLine' in d) and ('body' in d):
+            return ChatbotMessage.assistant_msg_from_dict(d)
+        else:
+            return ChatbotMessage.chatbot_msg_from_dict(d)
+
+    @classmethod
+    def assistant_msg_from_dict(cls, d):
+        msg = ChatbotMessage()
+
+        msg.is_ai_assistant = True
+        body = json.loads(d['body'])
+        for name, value in body.items():
+            if name == 'senderId':
+                msg.sender_id = value
+            elif name == 'conversationId':
+                msg.conversation_id = value
+            elif name == 'senderCorpId':
+                msg.sender_corp_id = value
+            elif name == 'conversationToken':
+                msg.conversation_token = value
+            elif name == 'message':
+                msg.message_type = 'text'
+                msg.text = TextContent.from_dict({'content': value})
+            else:
+                msg.extensions[name] = value
+        return msg
+
+    @classmethod
+    def chatbot_msg_from_dict(cls, d):
         msg = ChatbotMessage()
         data = ''
         for name, value in d.items():
