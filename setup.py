@@ -22,7 +22,6 @@ setup(
     install_requires=[
         'websockets>=11.0.2',
         'requests>=2.27.1',
-        'urllib3==1.26.15',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
