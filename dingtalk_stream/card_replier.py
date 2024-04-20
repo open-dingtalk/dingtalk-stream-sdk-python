@@ -16,106 +16,107 @@ if TYPE_CHECKING:
 
 class CardReplier(object):
 
-    def __init__(self, dingtalk_client: 'DingTalkStreamClient', incoming_message: 'ChatbotMessage'):
-        self.dingtalk_client: 'DingTalkStreamClient' = dingtalk_client
-        self.incoming_message: 'ChatbotMessage' = incoming_message
-        self.conversation_type = incoming_message.conversation_type
-        self.open_conversation_id = incoming_message
-        self.logger = setup_default_logger('dingtalk_stream.handler')
+    def __init__(
+        self,
+        dingtalk_client: "DingTalkStreamClient",
+        incoming_message: "ChatbotMessage",
+    ):
+        self.dingtalk_client: "DingTalkStreamClient" = dingtalk_client
+        self.incoming_message: "ChatbotMessage" = incoming_message
+        self.logger = setup_default_logger("dingtalk_stream.handler")
 
     @staticmethod
-    def gen_card_id(msg: 'ChatbotMessage'):
-        factor = '%s_%s_%s_%s_%s' % (
-            msg.sender_id, msg.sender_corp_id, msg.conversation_id, msg.message_id, str(uuid.uuid1()))
+    def gen_card_id(msg: "ChatbotMessage"):
+        factor = "%s_%s_%s_%s_%s" % (
+            msg.sender_id,
+            msg.sender_corp_id,
+            msg.conversation_id,
+            msg.message_id,
+            str(uuid.uuid1()),
+        )
         m = hashlib.sha256()
-        m.update(factor.encode('utf-8'))
+        m.update(factor.encode("utf-8"))
         return m.hexdigest()
 
     @staticmethod
     def get_request_header(access_token):
         return {
-            'Content-Type': 'application/json',
-            'Accept': '*/*',
-            'x-acs-dingtalk-access-token': access_token,
-            'User-Agent': ('DingTalkStream/1.0 SDK/0.1.0 Python/%s '
-                           '(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)'
-                           ) % platform.python_version(),
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "x-acs-dingtalk-access-token": access_token,
+            "User-Agent": (
+                "DingTalkStream/1.0 SDK/0.1.0 Python/%s "
+                "(+https://github.com/open-dingtalk/dingtalk-stream-sdk-python)"
+            )
+            % platform.python_version(),
         }
 
-    def create_and_send_card(self,
-                             card_template_id: str,
-                             card_data: dict,
-                             callback_type: str = "",
-                             callback_route_key: str = "",
-                             at_sender: bool = False,
-                             at_all: bool = False,
-                             recipients: list = None,
-                             support_forward: bool = True) -> str:
+    def create_and_send_card(
+        self,
+        card_template_id: str,
+        card_data: dict,
+        callback_type: str = "STREAM",
+        callback_route_key: str = "",
+        at_sender: bool = False,
+        at_all: bool = False,
+        recipients: list = None,
+        support_forward: bool = True,
+    ) -> str:
         """
         发送卡片，两步骤：创建+投放。
         https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
-        :param support_forward:
-        :param callback_route_key:
-        :param callback_type:
-        :param recipients:
-        :param card_template_id: 卡片模板ID
+        :param support_forward: 卡片是否支持转发
+        :param callback_route_key: HTTP 回调时的 route key
+        :param callback_type: 卡片回调模式
+        :param recipients: 接收者
+        :param card_template_id: 卡片模板 ID
         :param card_data: 卡片数据
-        :param at_sender:
-        :param at_all:
+        :param at_sender: 是否@发送者
+        :param at_all: 是否@所有人
         :return: 卡片的实例ID
         """
         access_token = self.dingtalk_client.get_access_token()
         if not access_token:
             self.logger.error(
-                'CardResponder.send_card failed, cannot get dingtalk access token')
+                "CardResponder.send_card failed, cannot get dingtalk access token"
+            )
             return ""
 
         card_instance_id = self.gen_card_id(self.incoming_message)
         body = {
             "cardTemplateId": card_template_id,
             "outTrackId": card_instance_id,
-            "cardData": {
-                "cardParamMap": card_data
-            },
-            "imGroupOpenSpaceModel": {
-                "supportForward": True
-            },
-            "imRobotOpenSpaceModel": {
-                "supportForward": True
-            }
+            "cardData": {"cardParamMap": card_data},
+            "callbackType": callback_type,
+            "imGroupOpenSpaceModel": {"supportForward": support_forward},
+            "imRobotOpenSpaceModel": {"supportForward": support_forward},
         }
 
-        if not support_forward:
-            body["imGroupOpenSpaceModel"]["supportForward"] = False
-            body["imRobotOpenSpaceModel"]["supportForward"] = False
-
-        if callback_type == "STREAM":
-            body["callbackType"] = "STREAM"
-        elif callback_type == "HTTP":
+        if callback_type == "HTTP":
             body["callbackType"] = "HTTP"
             body["callbackRouteKey"] = callback_route_key
 
         # 创建卡片实例。https://open.dingtalk.com/document/orgapp/interface-for-creating-a-card-instance
-        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances'
+        url = DINGTALK_OPENAPI_ENDPOINT + "/v1.0/card/instances"
         try:
-            response = requests.post(url,
-                                     headers=self.get_request_header(access_token),
-                                     json=body)
+            response = requests.post(
+                url, headers=self.get_request_header(access_token), json=body
+            )
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'CardResponder.send_card failed, create card instance failed, error={e}, response.text={response.text}')
+            self.logger.error(
+                f"CardResponder.send_card failed, create card instance failed, error={e}, response.text={response.text}"
+            )
             return ""
 
-        body = {
-            "outTrackId": card_instance_id,
-            "userIdType": 1
-        }
+        body = {"outTrackId": card_instance_id, "userIdType": 1}
 
         # 2：群聊，1：单聊
-        if self.incoming_message.conversation_type == '2':
-            body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(spaceType="IM_GROUP",
-                                                                            spaceId=self.incoming_message.conversation_id)
+        if self.incoming_message.conversation_type == "2":
+            body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(
+                spaceType="IM_GROUP", spaceId=self.incoming_message.conversation_id
+            )
             body["imGroupOpenDeliverModel"] = {
                 "robotCode": self.dingtalk_client.credential.client_id,
             }
@@ -135,38 +136,142 @@ class CardReplier(object):
             # 增加托管extension
             if self.incoming_message.hosting_context is not None:
                 body["imGroupOpenDeliverModel"]["extension"] = {
-                    "hostingRepliedContext": json.dumps({
-                        "userId": self.incoming_message.hosting_context.user_id
-                    })
+                    "hostingRepliedContext": json.dumps(
+                        {"userId": self.incoming_message.hosting_context.user_id}
+                    )
                 }
-        elif self.incoming_message.conversation_type == '1':
-            body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(spaceType="IM_ROBOT",
-                                                                            spaceId=self.incoming_message.sender_staff_id)
-            body["imRobotOpenDeliverModel"] = {
-                "spaceType": "IM_ROBOT"
-            }
+        elif self.incoming_message.conversation_type == "1":
+            body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(
+                spaceType="IM_ROBOT", spaceId=self.incoming_message.sender_staff_id
+            )
+            body["imRobotOpenDeliverModel"] = {"spaceType": "IM_ROBOT"}
 
             # 增加托管extension
             if self.incoming_message.hosting_context is not None:
                 body["imRobotOpenDeliverModel"]["extension"] = {
-                    "hostingRepliedContext": json.dumps({
-                        "userId": self.incoming_message.hosting_context.user_id
-                    })
+                    "hostingRepliedContext": json.dumps(
+                        {"userId": self.incoming_message.hosting_context.user_id}
+                    )
                 }
 
         # 投放卡片。https://open.dingtalk.com/document/orgapp/delivery-card-interface
-        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances/deliver'
+        url = DINGTALK_OPENAPI_ENDPOINT + "/v1.0/card/instances/deliver"
         try:
-            response = requests.post(url,
-                                     headers=self.get_request_header(access_token),
-                                     json=body)
+            response = requests.post(
+                url, headers=self.get_request_header(access_token), json=body
+            )
 
             response.raise_for_status()
 
             return card_instance_id
         except Exception as e:
-            self.logger.error(f'put_card_data.create_and_send_card failed, send card failed, error={e}, response.text={response.text}')
+            self.logger.error(
+                f"put_card_data.create_and_send_card failed, send card failed, error={e}, response.text={response.text}"
+            )
             return ""
+
+    def create_and_deliver_card(
+        self,
+        card_template_id: str,
+        card_data: dict,
+        callback_type: str = "STREAM",
+        callback_route_key: str = "",
+        at_sender: bool = False,
+        at_all: bool = False,
+        recipients: list = None,
+        support_forward: bool = True,
+        **kwargs,
+    ) -> str:
+        """
+        创建并发送卡片一步到位，支持传入其他参数以达到投放吊顶场域卡片的效果等等。
+        https://open.dingtalk.com/document/orgapp/create-and-deliver-cards
+        :param support_forward: 卡片是否支持转发
+        :param callback_route_key: HTTP 回调时的 route key
+        :param callback_type: 卡片回调模式
+        :param recipients: 接收者
+        :param card_template_id: 卡片模板 ID
+        :param card_data: 卡片数据
+        :param at_sender: 是否@发送者
+        :param at_all: 是否@所有人
+        :param kwargs: 其他参数，如覆盖 openSpaceId，配置动态数据源 openDynamicDataConfig，配置吊顶场域 topOpenSpaceModel、topOpenDeliverModel 等等
+        :return: 卡片的实例ID
+        """
+        access_token = self.dingtalk_client.get_access_token()
+        if not access_token:
+            self.logger.error(
+                "CardResponder.send_card failed, cannot get dingtalk access token"
+            )
+            return ""
+
+        card_instance_id = self.gen_card_id(self.incoming_message)
+        body = {
+            "cardTemplateId": card_template_id,
+            "outTrackId": card_instance_id,
+            "cardData": {"cardParamMap": card_data},
+            "callbackType": callback_type,
+            "imGroupOpenSpaceModel": {"supportForward": support_forward},
+            "imRobotOpenSpaceModel": {"supportForward": support_forward},
+        }
+
+        if callback_type == "HTTP":
+            body["callbackType"] = "HTTP"
+            body["callbackRouteKey"] = callback_route_key
+
+            # 2：群聊，1：单聊
+        if self.incoming_message.conversation_type == "2":
+            body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(
+                spaceType="IM_GROUP", spaceId=self.incoming_message.conversation_id
+            )
+            body["imGroupOpenDeliverModel"] = {
+                "robotCode": self.dingtalk_client.credential.client_id,
+            }
+
+            if at_all:
+                body["imGroupOpenDeliverModel"]["atUserIds"] = {
+                    "@ALL": "@ALL",
+                }
+            elif at_sender:
+                body["imGroupOpenDeliverModel"]["atUserIds"] = {
+                    self.incoming_message.sender_staff_id: self.incoming_message.sender_nick,
+                }
+
+            if recipients is not None:
+                body["imGroupOpenDeliverModel"]["recipients"] = recipients
+
+            # 增加托管extension
+            if self.incoming_message.hosting_context is not None:
+                body["imGroupOpenDeliverModel"]["extension"] = {
+                    "hostingRepliedContext": json.dumps(
+                        {"userId": self.incoming_message.hosting_context.user_id}
+                    )
+                }
+        elif self.incoming_message.conversation_type == "1":
+            body["openSpaceId"] = "dtv1.card//{spaceType}.{spaceId}".format(
+                spaceType="IM_ROBOT", spaceId=self.incoming_message.sender_staff_id
+            )
+            body["imRobotOpenDeliverModel"] = {"spaceType": "IM_ROBOT"}
+
+            # 增加托管extension
+            if self.incoming_message.hosting_context is not None:
+                body["imRobotOpenDeliverModel"]["extension"] = {
+                    "hostingRepliedContext": json.dumps(
+                        {"userId": self.incoming_message.hosting_context.user_id}
+                    )
+                }
+
+        url = DINGTALK_OPENAPI_ENDPOINT + "/v1.0/card/instances/createAndDeliver"
+        try:
+            body = {**body, **kwargs}
+            response = requests.post(
+                url, headers=self.get_request_header(access_token), json=body
+            )
+        except Exception as e:
+            self.logger.error(
+                f"CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text}"
+            )
+            
+        return card_instance_id
+
 
     def put_card_data(self, card_instance_id: str, card_data: dict, **kwargs):
         """
@@ -180,26 +285,27 @@ class CardReplier(object):
         access_token = self.dingtalk_client.get_access_token()
         if not access_token:
             self.logger.error(
-                'CardReplier.put_card_data failed, cannot get dingtalk access token')
+                "CardReplier.put_card_data failed, cannot get dingtalk access token"
+            )
             return
 
         body = {
             "outTrackId": card_instance_id,
-            "cardData": {
-                "cardParamMap": card_data
-            },
+            "cardData": {"cardParamMap": card_data},
             **kwargs,
         }
 
-        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/instances'
+        url = DINGTALK_OPENAPI_ENDPOINT + "/v1.0/card/instances"
         try:
-            response = requests.put(url,
-                                    headers=self.get_request_header(access_token),
-                                    json=body)
+            response = requests.put(
+                url, headers=self.get_request_header(access_token), json=body
+            )
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text}')
+            self.logger.error(
+                f"CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text}"
+            )
             return
 
 
@@ -217,11 +323,13 @@ class AICardReplier(CardReplier):
     def __init__(self, dingtalk_client, incoming_message):
         super(AICardReplier, self).__init__(dingtalk_client, incoming_message)
 
-    def start(self,
-              card_template_id: str,
-              card_data: dict,
-              recipients: list = None,
-              support_forward: bool = True) -> str:
+    def start(
+        self,
+        card_template_id: str,
+        card_data: dict,
+        recipients: list = None,
+        support_forward: bool = True,
+    ) -> str:
         """
         AI卡片的创建接口
         :param support_forward:
@@ -232,8 +340,14 @@ class AICardReplier(CardReplier):
         """
         card_data_with_status = copy.deepcopy(card_data)
         card_data_with_status["flowStatus"] = AICardStatus.PROCESSING
-        return self.create_and_send_card(card_template_id, card_data_with_status, at_sender=False, at_all=False,
-                                         recipients=recipients, support_forward=support_forward)
+        return self.create_and_send_card(
+            card_template_id,
+            card_data_with_status,
+            at_sender=False,
+            at_all=False,
+            recipients=recipients,
+            support_forward=support_forward,
+        )
 
     def finish(self, card_instance_id: str, card_data: dict):
         """
@@ -257,8 +371,15 @@ class AICardReplier(CardReplier):
         card_data_with_status["flowStatus"] = AICardStatus.FAILED
         self.put_card_data(card_instance_id, card_data_with_status)
 
-    def streaming(self, card_instance_id: str, content_key: str, content_value: str, append: bool, finished: bool,
-                  failed: bool):
+    def streaming(
+        self,
+        card_instance_id: str,
+        content_key: str,
+        content_value: str,
+        append: bool,
+        finished: bool,
+        failed: bool,
+    ):
         """
         AI卡片的流式输出
         :param card_instance_id:
@@ -272,7 +393,8 @@ class AICardReplier(CardReplier):
         access_token = self.dingtalk_client.get_access_token()
         if not access_token:
             self.logger.error(
-                'AICardReplier.streaming failed, cannot get dingtalk access token')
+                "AICardReplier.streaming failed, cannot get dingtalk access token"
+            )
             return None
 
         body = {
@@ -285,13 +407,15 @@ class AICardReplier(CardReplier):
             "isError": failed,
         }
 
-        url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/card/streaming'
+        url = DINGTALK_OPENAPI_ENDPOINT + "/v1.0/card/streaming"
         try:
-            response = requests.put(url,
-                                    headers=self.get_request_header(access_token),
-                                    json=body)
+            response = requests.put(
+                url, headers=self.get_request_header(access_token), json=body
+            )
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'AICardReplier.streaming failed, error={e}, response.text={response.text}')
+            self.logger.error(
+                f"AICardReplier.streaming failed, error={e}, response.text={response.text}"
+            )
             return

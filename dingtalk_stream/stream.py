@@ -85,8 +85,6 @@ class DingTalkStreamClient(object):
     async def route_message(self, json_message):
         result = ''
         msg_type = json_message.get('type', '')
-        headers = json_message.get('headers', {})
-        topic = headers.get('topic', '')
         ack = None
         if msg_type == SystemMessage.TYPE:
             msg = SystemMessage.from_dict(json_message)
