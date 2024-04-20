@@ -23,7 +23,7 @@ class CardReplier(object):
     ):
         self.dingtalk_client: "DingTalkStreamClient" = dingtalk_client
         self.incoming_message: "ChatbotMessage" = incoming_message
-        self.logger = setup_default_logger("dingtalk_stream.handler")
+        self.logger = setup_default_logger("dingtalk_stream.card_replier")
 
     @staticmethod
     def gen_card_id(msg: "ChatbotMessage"):
