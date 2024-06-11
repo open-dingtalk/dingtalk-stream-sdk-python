@@ -106,7 +106,7 @@ class CardReplier(object):
             response.raise_for_status()
         except Exception as e:
             self.logger.error(
-                f"CardResponder.send_card failed, create card instance failed, error={e}, response.text={response.text}"
+                f"CardResponder.send_card failed, create card instance failed, error={e}, response.text={response.text if 'response' in locals() else ''}"
             )
             return ""
 
@@ -166,7 +166,7 @@ class CardReplier(object):
             return card_instance_id
         except Exception as e:
             self.logger.error(
-                f"put_card_data.create_and_send_card failed, send card failed, error={e}, response.text={response.text}"
+                f"put_card_data.create_and_send_card failed, send card failed, error={e}, response.text={response.text if 'response' in locals() else ''}"
             )
             return ""
 
@@ -267,7 +267,7 @@ class CardReplier(object):
             )
         except Exception as e:
             self.logger.error(
-                f"CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text}"
+                f"CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text if 'response' in locals() else ''}"
             )
             
         return card_instance_id
@@ -304,7 +304,7 @@ class CardReplier(object):
             response.raise_for_status()
         except Exception as e:
             self.logger.error(
-                f"CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text}"
+                f"CardReplier.put_card_data failed, update card failed, error={e}, response.text={response.text if 'response' in locals() else ''}"
             )
             return
 
@@ -416,6 +416,6 @@ class AICardReplier(CardReplier):
             response.raise_for_status()
         except Exception as e:
             self.logger.error(
-                f"AICardReplier.streaming failed, error={e}, response.text={response.text}"
+                f"AICardReplier.streaming failed, error={e}, response.text={response.text if 'response' in locals() else ''}"
             )
             return

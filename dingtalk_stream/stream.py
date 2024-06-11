@@ -155,7 +155,7 @@ class DingTalkStreamClient(object):
                                      data=request_body)
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'open connection failed, error={e}, response.text={response.text}')
+            self.logger.error(f'open connection failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
             return None
         return response.json()
 
@@ -196,7 +196,7 @@ class DingTalkStreamClient(object):
                                      data=json.dumps(values))
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'get dingtalk access token failed, error={e}, response.text={response.text}')
+            self.logger.error(f'get dingtalk access token failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
             return None
 
         result = response.json()
@@ -223,9 +223,9 @@ class DingTalkStreamClient(object):
                 self.reset_access_token()
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'upload to dingtalk failed, error={e}, response.text={response.text}')
+            self.logger.error(f'upload to dingtalk failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
             return None
         if 'media_id' not in response.json():
-            self.logger.error('upload to dingtalk failed, error resonse is %s', response.json())
+            self.logger.error('upload to dingtalk failed, error response is %s', response.json())
             raise Exception('upload failed, error=%s' % response.json())
         return response.json()['media_id']
