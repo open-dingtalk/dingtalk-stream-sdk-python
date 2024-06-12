@@ -558,7 +558,7 @@ class ChatbotHandler(CallbackHandler):
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'get_image_download_url, error={e}, response.text={response.text if 'response' in locals() else ''}')
+            self.logger.error(f'get_image_download_url, error={e}, response.text={response.text if "response" in locals() else ""}')
             return ""
         return response.json()["downloadUrl"]
 
@@ -607,7 +607,7 @@ class ChatbotHandler(CallbackHandler):
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'set_off_duty_prompt, error={e}, response.text={response.text if 'response' in locals() else ''}')
+            self.logger.error(f'set_off_duty_prompt, error={e}, response.text={response.text if "response" in locals() else ""}')
             return response.status_code
         return response.json()
 
@@ -633,7 +633,7 @@ class ChatbotHandler(CallbackHandler):
                                      data=json.dumps(values))
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'reply text failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
+            self.logger.error(f'reply text failed, error={e}, response.text={response.text if "response" in locals() else ""}')
             return None
         return response.json()
 
@@ -661,7 +661,7 @@ class ChatbotHandler(CallbackHandler):
                                      data=json.dumps(values))
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'reply markdown failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
+            self.logger.error(f'reply markdown failed, error={e}, response.text={response.text if "response" in locals() else ""}')
             return None
         return response.json()
 
@@ -742,7 +742,7 @@ class ChatbotHandler(CallbackHandler):
 
             return card_biz_id
         except Exception as e:
-            self.logger.error(f'reply card failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
+            self.logger.error(f'reply card failed, error={e}, response.text={response.text if "response" in locals() else ""}')
             return ""
 
     def update_card(self, card_biz_id: str, card_data: dict):
@@ -778,7 +778,7 @@ class ChatbotHandler(CallbackHandler):
                                     data=json.dumps(values))
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'update card failed, error={e}, response.text={response.text if 'response' in locals() else ''}')
+            self.logger.error(f'update card failed, error={e}, response.text={response.text if "response" in locals() else ""}')
             return response.status_code
         return response.json()
 
