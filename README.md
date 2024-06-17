@@ -1,3 +1,9 @@
+<p align="left">
+  <a target="_blank" href="https://github.com/open-dingtalk/dingtalk-stream-sdk-python/actions/workflows/publish.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/open-dingtalk/dingtalk-stream-sdk-python/publish.yml" />
+  </a>
+</p>
+
 # DingTalk Stream Mode 介绍
 
 Python SDK for DingTalk Stream Mode API, Compared with the webhook mode, it is easier to access the DingTalk chatbot
