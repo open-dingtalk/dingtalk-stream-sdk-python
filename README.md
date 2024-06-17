@@ -2,6 +2,10 @@
   <a target="_blank" href="https://github.com/open-dingtalk/dingtalk-stream-sdk-python/actions/workflows/publish.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/open-dingtalk/dingtalk-stream-sdk-python/publish.yml" />
   </a>
+
+  <a target="_blank" href="https://pypi.org/project/dingtalk-stream/">
+    <img alt="PyPI - Version" src="https://img.shields.io/pypi/v/dingtalk-stream">
+  </a>
 </p>
 
 # DingTalk Stream Mode 介绍
