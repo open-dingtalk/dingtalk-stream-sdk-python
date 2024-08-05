@@ -552,13 +552,15 @@ class ChatbotHandler(CallbackHandler):
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/robot/messageFiles/download'
 
         try:
+            response_text = ''
             response = requests.post(url,
                                      headers=request_headers,
                                      data=json.dumps(values))
+            response_text = response.text
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'get_image_download_url, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'get_image_download_url, error={e}, response.text={response_text}')
             return ""
         return response.json()["downloadUrl"]
 
@@ -601,13 +603,15 @@ class ChatbotHandler(CallbackHandler):
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/innerApi/robot/stream/away/template/update'
 
         try:
+            response_text = ''
             response = requests.post(url,
                                      headers=request_headers,
                                      data=json.dumps(values))
+            response_text = response.text
 
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'set_off_duty_prompt, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'set_off_duty_prompt, error={e}, response.text={response_text}')
             return response.status_code
         return response.json()
 
@@ -628,12 +632,15 @@ class ChatbotHandler(CallbackHandler):
             }
         }
         try:
+            response_text = ''
             response = requests.post(incoming_message.session_webhook,
                                      headers=request_headers,
                                      data=json.dumps(values))
+            response_text = response.text
+            
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'reply text failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'reply text failed, error={e}, response.text={response_text}')
             return None
         return response.json()
 
@@ -656,12 +663,15 @@ class ChatbotHandler(CallbackHandler):
             }
         }
         try:
+            response_text = ''
             response = requests.post(incoming_message.session_webhook,
                                      headers=request_headers,
                                      data=json.dumps(values))
+            response_text = response.text        
+
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'reply markdown failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'reply markdown failed, error={e}, response.text={response_text}')
             return None
         return response.json()
 
@@ -735,14 +745,17 @@ class ChatbotHandler(CallbackHandler):
 
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/im/v1.0/robot/interactiveCards/send'
         try:
+            response_text = ''
             response = requests.post(url,
                                      headers=request_headers,
                                      json=body)
+            response_text = response.text
+
             response.raise_for_status()
 
             return card_biz_id
         except Exception as e:
-            self.logger.error(f'reply card failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'reply card failed, error={e}, response.text={response_text}')
             return ""
 
     def update_card(self, card_biz_id: str, card_data: dict):
@@ -773,12 +786,15 @@ class ChatbotHandler(CallbackHandler):
         }
         url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/im/robots/interactiveCards'
         try:
+            response_text = ''
             response = requests.put(url,
                                     headers=request_headers,
                                     data=json.dumps(values))
+            response_text = response.text
+            
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'update card failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'update card failed, error={e}, response.text={response_text}')
             return response.status_code
         return response.json()
 
