@@ -76,11 +76,15 @@ class DingTalkStreamClient(object):
                 self.websocket = websocket
                 async for raw_message in websocket:
                     json_message = json.loads(raw_message)
-                    route_result = await self.route_message(json_message)
-                    if route_result == DingTalkStreamClient.TAG_DISCONNECT:
-                        break
-                # self.websocket.close()
-        return
+                    asyncio.create_task(self.background_task(json_message))
+
+    async def background_task(self, json_message):
+        try:
+            route_result = await self.route_message(json_message)
+            if route_result == DingTalkStreamClient.TAG_DISCONNECT:
+                await self.websocket.close()
+        except Exception as e:
+            self.logger.error(f"error processing message: {e}")
 
     async def route_message(self, json_message):
         result = ''
@@ -150,12 +154,15 @@ class DingTalkStreamClient(object):
         }).encode('utf-8')
 
         try:
+            response_text = ''
             response = requests.post(DingTalkStreamClient.OPEN_CONNECTION_API,
                                      headers=request_headers,
                                      data=request_body)
+            response_text = response.text
+            
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'open connection failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'open connection failed, error={e}, response.text={response_text}')
             return None
         return response.json()
 
@@ -192,12 +199,15 @@ class DingTalkStreamClient(object):
         }
         try:
             url = get_dingtalk_endpoint() + '/v1.0/oauth2/accessToken'
+            response_text = ''
             response = requests.post(url,
                                      headers=request_headers,
                                      data=json.dumps(values))
+            response_text = response.text
+            
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'get dingtalk access token failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'get dingtalk access token failed, error={e}, response.text={response_text}')
             return None
 
         result = response.json()
@@ -219,12 +229,15 @@ class DingTalkStreamClient(object):
         upload_url = ('https://oapi.dingtalk.com/media/upload?access_token=%s'
                       ) % urllib.parse.quote_plus(access_token)
         try:
+            response_text = ''
             response = requests.post(upload_url, data=values, files=files)
+            response_text = response.text
             if response.status_code == 401:
                 self.reset_access_token()
+
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f'upload to dingtalk failed, error={e}, response.text={response.text if "response" in locals() else ""}')
+            self.logger.error(f'upload to dingtalk failed, error={e}, response.text={response_text}')
             return None
         if 'media_id' not in response.json():
             self.logger.error('upload to dingtalk failed, error response is %s', response.json())

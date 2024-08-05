@@ -22,6 +22,7 @@ setup(
     install_requires=[
         'websockets>=11.0.2',
         'requests>=2.27.1',
+        'aiohttp>=3.10.0',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
