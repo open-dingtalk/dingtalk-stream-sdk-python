@@ -686,7 +686,7 @@ class AICardReplier(CardReplier):
         card_data_with_status["flowStatus"] = AICardStatus.FINISHED
         self.put_card_data(card_instance_id, card_data_with_status)
 
-    async def finish(self, card_instance_id: str, card_data: dict):
+    async def async_finish(self, card_instance_id: str, card_data: dict):
         """
         AI卡片执行完成的接口，整体更新
         :param card_instance_id:
