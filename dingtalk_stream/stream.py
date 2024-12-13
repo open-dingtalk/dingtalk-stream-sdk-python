@@ -22,12 +22,12 @@ from .frames import SystemMessage
 from .frames import EventMessage
 from .frames import CallbackMessage
 from .log import setup_default_logger
-from .utils import get_dingtalk_endpoint
+from .utils import DINGTALK_OPENAPI_ENDPOINT
 from .version import VERSION_STRING
 
 
 class DingTalkStreamClient(object):
-    OPEN_CONNECTION_API = get_dingtalk_endpoint() + '/v1.0/gateway/connections/open'
+    OPEN_CONNECTION_API = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/gateway/connections/open'
     TAG_DISCONNECT = 'disconnect'
 
     def __init__(self, credential: Credential, logger: logging.Logger = None):
@@ -198,7 +198,7 @@ class DingTalkStreamClient(object):
             'appSecret': self.credential.client_secret,
         }
         try:
-            url = get_dingtalk_endpoint() + '/v1.0/oauth2/accessToken'
+            url = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/oauth2/accessToken'
             response_text = ''
             response = requests.post(url,
                                      headers=request_headers,
