@@ -93,7 +93,9 @@ if __name__ == '__main__':
 
 ## 高阶使用方法
 
-以上示例中，采用 `client.start_forever()` 来启动一个 asyncio 的 ioloop。你可以自行管理 ioloop，不使用 `start_forever` 方法。
+以上示例中，采用 `client.start_forever()` 来启动一个 asyncio 的 ioloop。
+
+有的时候，你需要在已有的 ioloop 中使用钉钉 Stream 模式，不使用 `start_forever` 方法。
 
 此时，可以使用 `client.start()` 代替 `client.start_forever()`。注意：需要在网络异常后重新启动
 
@@ -107,7 +109,7 @@ except (asyncio.exceptions.CancelledError,
 
 ## 开发教程
 
-在 [教程文档](https://opensource.dingtalk.com/developerpedia/docs/explore/tutorials/stream/overview) 中，你可以找到钉钉 Stream 模式的教程文档和示例代码。
+在 [教程文档](https://opensource.dingtalk.com/developerpedia/docs/explore/tutorials/stream/overview) 中，你可以找到更多钉钉 Stream 模式的教程文档和示例代码。
 
 ## 特别说明
 
