@@ -45,7 +45,6 @@ class CalcBotHandler(dingtalk_stream.ChatbotHandler):
         self.logger.info('%s = %s' % (expression, result))
         response = 'Q: %s\nA: %s' % (expression, result)
         self.reply_text(response, incoming_message)
-
         return AckMessage.STATUS_OK, 'OK'
 
 def main():

@@ -63,20 +63,34 @@ class DingTalkStreamClient(object):
         self.pre_start()
 
         while True:
-            connection = self.open_connection()
+            try:
+                connection = self.open_connection()
 
-            if not connection:
-                self.logger.error('open connection failed')
-                time.sleep(10)
+                if not connection:
+                    self.logger.error('open connection failed')
+                    time.sleep(10)
+                    continue
+                self.logger.info('endpoint is %s', connection)
+
+                uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
+                async with websockets.connect(uri) as websocket:
+                    self.websocket = websocket
+                    async for raw_message in websocket:
+                        json_message = json.loads(raw_message)
+                        asyncio.create_task(self.background_task(json_message))
+            except KeyboardInterrupt as e:
+                break
+            except (asyncio.exceptions.CancelledError,
+                    websockets.exceptions.ConnectionClosedError) as e:
+                self.logger.error('[start] network exception, error=%s', e)
+                await asyncio.sleep(10)
                 continue
-            self.logger.info('endpoint is %s', connection)
-
-            uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
-            async with websockets.connect(uri) as websocket:
-                self.websocket = websocket
-                async for raw_message in websocket:
-                    json_message = json.loads(raw_message)
-                    asyncio.create_task(self.background_task(json_message))
+            except Exception as e:
+                await asyncio.sleep(3)
+                self.logger.exception('unknown exception', e)
+                continue
+            finally:
+                pass
 
     async def background_task(self, json_message):
         try:
@@ -121,15 +135,8 @@ class DingTalkStreamClient(object):
                 asyncio.run(self.start())
             except KeyboardInterrupt as e:
                 break
-            except (asyncio.exceptions.CancelledError,
-                    websockets.exceptions.ConnectionClosedError) as e:
-                self.logger.error('network exception, error=%s', e)
-                time.sleep(10)
-                continue
-            except Exception as e:
+            finally:
                 time.sleep(3)
-                self.logger.exception('unknown exception', e)
-                continue
 
     def open_connection(self):
         self.logger.info('open connection, url=%s' % DingTalkStreamClient.OPEN_CONNECTION_API)
