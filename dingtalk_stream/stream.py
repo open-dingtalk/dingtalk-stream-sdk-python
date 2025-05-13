@@ -75,6 +75,7 @@ class DingTalkStreamClient(object):
                 uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
                 async with websockets.connect(uri) as websocket:
                     self.websocket = websocket
+                    keepalive_task = asyncio.create_task(self.keepalive(websocket))
                     async for raw_message in websocket:
                         json_message = json.loads(raw_message)
                         asyncio.create_task(self.background_task(json_message))
@@ -91,6 +92,14 @@ class DingTalkStreamClient(object):
                 continue
             finally:
                 pass
+
+    async def keepalive(self, ws, ping_interval=1):
+        while True:
+            await asyncio.sleep(ping_interval)
+            try:
+                await ws.ping()
+            except websockets.exceptions.ConnectionClosed:
+                break
 
     async def background_task(self, json_message):
         try:
