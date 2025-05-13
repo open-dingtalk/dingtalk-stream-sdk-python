@@ -2,6 +2,7 @@
 
 import json
 from .stream import CallbackHandler, CallbackMessage
+from .utils import http_post_json
 
 class GraphMessage(object):
     TOPIC = '/v1.0/graph/api/invoke'
@@ -122,8 +123,29 @@ class GraphResponse(object):
 
 
 class GraphHandler(CallbackHandler):
-
+    MARKDOWN_TEMPLATE_ID = 'd28e2ac5-fb34-4d93-94bc-cf5c580c2d4f.schema'
     def __init__(self):
         super(GraphHandler, self).__init__()
 
+    async def reply_markdown(self, webhook, content):
+        payload = {
+            'contentType': 'ai_card',
+            'content': {
+                'templateId': self.MARKDOWN_TEMPLATE_ID,
+                'cardData': {
+                    'content': content,
+                }
+            }
+        }
+        return await http_post_json(webhook, payload)
+
+    def get_success_response(self, payload=None):
+        if payload is None:
+            payload = dict()
+        response = GraphResponse()
+        response.status_line.code = 200
+        response.status_line.reason_phrase = 'OK'
+        response.headers['Content-Type'] = 'application/json'
+        response.body = json.dumps(payload, ensure_ascii=False)
+        return response
 
