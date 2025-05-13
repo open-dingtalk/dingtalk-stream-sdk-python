@@ -93,7 +93,7 @@ class DingTalkStreamClient(object):
             finally:
                 pass
 
-    async def keepalive(self, ws, ping_interval=1):
+    async def keepalive(self, ws, ping_interval=60):
         while True:
             await asyncio.sleep(ping_interval)
             try:
