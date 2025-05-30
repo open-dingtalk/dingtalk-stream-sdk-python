@@ -6,13 +6,11 @@ import json
 import logging
 import platform
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 import requests
 import socket
-
 import websockets
+
+from urllib.parse import quote_plus
 
 from .credential import Credential
 from .handlers import CallbackHandler
@@ -68,14 +66,14 @@ class DingTalkStreamClient(object):
 
                 if not connection:
                     self.logger.error('open connection failed')
-                    time.sleep(10)
+                    await asyncio.sleep(10)
                     continue
                 self.logger.info('endpoint is %s', connection)
 
-                uri = '%s?ticket=%s' % (connection['endpoint'], urllib.parse.quote_plus(connection['ticket']))
+                uri = f"{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}"
                 async with websockets.connect(uri) as websocket:
                     self.websocket = websocket
-                    keepalive_task = asyncio.create_task(self.keepalive(websocket))
+                    asyncio.create_task(self.keepalive(websocket))
                     async for raw_message in websocket:
                         json_message = json.loads(raw_message)
                         asyncio.create_task(self.background_task(json_message))
@@ -242,8 +240,7 @@ class DingTalkStreamClient(object):
         values = {
             'type': filetype,
         }
-        upload_url = ('https://oapi.dingtalk.com/media/upload?access_token=%s'
-                      ) % urllib.parse.quote_plus(access_token)
+        upload_url = f'https://oapi.dingtalk.com/media/upload?access_token={quote_plus(access_token)}'
         try:
             response_text = ''
             response = requests.post(upload_url, data=values, files=files)
