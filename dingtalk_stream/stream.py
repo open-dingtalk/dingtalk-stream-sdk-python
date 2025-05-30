@@ -70,7 +70,7 @@ class DingTalkStreamClient(object):
                     continue
                 self.logger.info('endpoint is %s', connection)
 
-                uri = f"{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}"
+                uri = f'{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}'
                 async with websockets.connect(uri) as websocket:
                     self.websocket = websocket
                     asyncio.create_task(self.keepalive(websocket))
