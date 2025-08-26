@@ -4,6 +4,7 @@ import json
 import requests
 import platform
 import hashlib
+import re
 from .stream import CallbackHandler, CallbackMessage
 from .frames import AckMessage, Headers
 from .interactive_card import generate_multi_text_line_card_data
@@ -13,6 +14,8 @@ import uuid
 from .card_instance import MarkdownCardInstance, AIMarkdownCardInstance, CarouselCardInstance, \
     MarkdownButtonCardInstance, RPAPluginCardInstance
 import traceback
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
 
 
 class AtUser(object):
@@ -71,24 +74,55 @@ class TextContent(object):
         return result
 
 
-class ImageContent(object):
+@dataclass
+class BaseContent:
+    download_code: Optional[str] = None
 
-    def __init__(self):
-        self.download_code = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert object attributes to dictionary with camelCase keys"""
+        result = {}
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if value is not None:  # Only include non-None values
+                # Convert snake_case to camelCase
+                camel_key = ''.join(
+                    part.title() if i > 0 else part
+                    for i, part in enumerate(field.name.split('_'))
+                )
+                result[camel_key] = value
+        return result
 
     @classmethod
-    def from_dict(cls, d):
-        content = ImageContent()
-        for name, value in d.items():
-            if name == 'downloadCode':
-                content.download_code = value
-        return content
+    def from_dict(cls, data: Dict[str, Any]) -> 'BaseContent':
+        def camel_to_snake(name):
+            s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+            return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
-    def to_dict(self):
-        result = {}
-        if self.download_code is not None:
-            result['downloadCode'] = self.download_code
-        return result
+        instance = cls()
+        for field_name, value in data.items():
+            attr_name = field_name
+            if not hasattr(instance, field_name):
+                attr_name = camel_to_snake(field_name)
+            if hasattr(instance, attr_name):
+                setattr(instance, attr_name, value)
+        return instance
+
+
+@dataclass
+class ImageContent(BaseContent):
+    picture_download_code: Optional[int] = None
+
+
+@dataclass
+class VideoContent(BaseContent):
+    video_type: Optional[str] = None
+    duration: Optional[int] = None
+
+
+@dataclass
+class FileContent(BaseContent):
+    space_id: Optional[str] = None
+    file_name: Optional[str] = None
 
 
 class RichTextContent(object):
@@ -180,6 +214,8 @@ class ChatbotMessage(object):
         self.conversation_title = None
         self.message_type = None
         self.image_content = None
+        self.video_content = None
+        self.file_content = None
         self.rich_text_content = None
         self.sender_staff_id = None
         self.hosting_context: HostingContext = None
@@ -230,6 +266,10 @@ class ChatbotMessage(object):
                     msg.text = TextContent.from_dict(d['text'])
                 elif value == 'picture':
                     msg.image_content = ImageContent.from_dict(d['content'])
+                elif value == 'video':
+                    msg.video_content = VideoContent.from_dict(d['content'])
+                elif value == 'file':
+                    msg.file_content = FileContent.from_dict(d['content'])
                 elif value == 'richText':
                     msg.rich_text_content = RichTextContent.from_dict(d['content'])
             elif name == 'senderStaffId':
@@ -279,6 +319,10 @@ class ChatbotMessage(object):
             result['text'] = self.text.to_dict()
         if self.image_content is not None:
             result['content'] = self.image_content.to_dict()
+        if self.video_content is not None:
+            result['content'] = self.video_content.to_dict()
+        if self.file_content is not None:
+            result['content'] = self.file_content.to_dict()
         if self.rich_text_content is not None:
             result['content'] = self.rich_text_content.to_dict()
         if self.conversation_type is not None:
@@ -637,7 +681,7 @@ class ChatbotHandler(CallbackHandler):
                                      headers=request_headers,
                                      data=json.dumps(values))
             response_text = response.text
-            
+
             response.raise_for_status()
         except Exception as e:
             self.logger.error(f'reply text failed, error={e}, response.text={response_text}')
@@ -667,7 +711,7 @@ class ChatbotHandler(CallbackHandler):
             response = requests.post(incoming_message.session_webhook,
                                      headers=request_headers,
                                      data=json.dumps(values))
-            response_text = response.text        
+            response_text = response.text
 
             response.raise_for_status()
         except Exception as e:
@@ -791,7 +835,7 @@ class ChatbotHandler(CallbackHandler):
                                     headers=request_headers,
                                     data=json.dumps(values))
             response_text = response.text
-            
+
             response.raise_for_status()
         except Exception as e:
             self.logger.error(f'update card failed, error={e}, response.text={response_text}')
