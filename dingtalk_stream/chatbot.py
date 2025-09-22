@@ -367,6 +367,19 @@ class ChatbotMessage(object):
 
             return images
 
+    def get_down_list(self):
+        if self.message_type == 'picture':
+            return [self.image_content.download_code]
+        elif self.message_type == 'file':
+            return [self.file_content.download_code, self.file_content.file_name]
+        elif self.message_type == 'richText':
+            images = []
+            for item in self.rich_text_content.rich_text_list:
+                if 'downloadCode' in item:
+                    images.append(item['downloadCode'])
+
+            return images
+
     def __str__(self):
         return 'ChatbotMessage(message_type=%s, text=%s, sender_nick=%s, conversation_title=%s)' % (
             self.message_type,
