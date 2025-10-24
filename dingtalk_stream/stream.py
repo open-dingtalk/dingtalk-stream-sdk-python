@@ -163,7 +163,7 @@ class DingTalkStreamClient(object):
             'clientId': self.credential.client_id,
             'clientSecret': self.credential.client_secret,
             'subscriptions': topics,
-            'ua': 'dingtalk-sdk-python/v%s' % VERSION_STRING,
+            'ua': 'dingtalk-sdk-python/v%s-union' % VERSION_STRING,
             'localIp': self.get_host_ip()
         }).encode('utf-8')
 
