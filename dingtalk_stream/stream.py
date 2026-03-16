@@ -192,7 +192,8 @@ class DingTalkStreamClient(object):
             ip = s.getsockname()[0]
         finally:
             s.close()
-            return ip
+
+        return ip
 
     def reset_access_token(self):
         """ reset token if open api return 401 """
