@@ -28,7 +28,7 @@ class DingTalkStreamClient(object):
     OPEN_CONNECTION_API = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/gateway/connections/open'
     TAG_DISCONNECT = 'disconnect'
 
-    def __init__(self, credential: Credential, logger: logging.Logger = None):
+    def __init__(self, credential: Credential, logger: logging.Logger = None, websocket_connect_options=None):
         self.credential: Credential = credential
         self.event_handler: EventHandler = EventHandler()
         self.callback_handler_map = {}
@@ -38,6 +38,7 @@ class DingTalkStreamClient(object):
         self._pre_started = False
         self._is_event_required = False
         self._access_token = {}
+        self.websocket_connect_options = websocket_connect_options or {}
 
     def register_all_event_handler(self, handler: EventHandler):
         handler.dingtalk_client = self
@@ -71,7 +72,7 @@ class DingTalkStreamClient(object):
                 self.logger.info('endpoint is %s', connection)
 
                 uri = f'{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}'
-                async with websockets.connect(uri) as websocket:
+                async with websockets.connect(uri, **self.websocket_connect_options) as websocket:
                     self.websocket = websocket
                     asyncio.create_task(self.keepalive(websocket))
                     async for raw_message in websocket:
