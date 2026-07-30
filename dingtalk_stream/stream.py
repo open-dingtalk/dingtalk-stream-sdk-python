@@ -27,6 +27,8 @@ from .version import VERSION_STRING
 class DingTalkStreamClient(object):
     OPEN_CONNECTION_API = DINGTALK_OPENAPI_ENDPOINT + '/v1.0/gateway/connections/open'
     TAG_DISCONNECT = 'disconnect'
+    HTTP_TIMEOUT_SECONDS = 10
+    MAX_PENDING_TASKS = 100
 
     def __init__(self, credential: Credential, logger: logging.Logger = None):
         self.credential: Credential = credential
@@ -38,6 +40,9 @@ class DingTalkStreamClient(object):
         self._pre_started = False
         self._is_event_required = False
         self._access_token = {}
+        self._runner_task = None
+        self._stop_event = None
+        self._connection_tasks = set()
 
     def register_all_event_handler(self, handler: EventHandler):
         handler.dingtalk_client = self
@@ -59,37 +64,91 @@ class DingTalkStreamClient(object):
 
     async def start(self):
         self.pre_start()
+        current_task = asyncio.current_task()
+        if self._runner_task is not None and not self._runner_task.done():
+            raise RuntimeError('DingTalk stream client is already running')
 
-        while True:
-            try:
-                connection = self.open_connection()
+        self._runner_task = current_task
+        self._stop_event = asyncio.Event()
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    loop = asyncio.get_running_loop()
+                    connection = await loop.run_in_executor(None, self.open_connection)
 
-                if not connection:
-                    self.logger.error('open connection failed')
-                    await asyncio.sleep(10)
-                    continue
-                self.logger.info('endpoint is %s', connection)
+                    if self._stop_event.is_set():
+                        break
+                    if not connection:
+                        self.logger.error('open connection failed')
+                        await self._wait_before_retry(10)
+                        continue
+                    self.logger.info('connecting to endpoint %s', connection['endpoint'])
 
-                uri = f'{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}'
-                async with websockets.connect(uri) as websocket:
-                    self.websocket = websocket
-                    asyncio.create_task(self.keepalive(websocket))
-                    async for raw_message in websocket:
-                        json_message = json.loads(raw_message)
-                        asyncio.create_task(self.background_task(json_message))
-            except KeyboardInterrupt as e:
-                break
-            except (asyncio.exceptions.CancelledError,
-                    websockets.exceptions.ConnectionClosedError) as e:
-                self.logger.error('[start] network exception, error=%s', e)
-                await asyncio.sleep(10)
-                continue
-            except Exception as e:
-                await asyncio.sleep(3)
-                self.logger.exception('unknown exception', e)
-                continue
-            finally:
-                pass
+                    uri = f'{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}'
+                    async with websockets.connect(uri) as websocket:
+                        self.websocket = websocket
+                        keepalive_task = asyncio.create_task(self.keepalive(websocket))
+                        try:
+                            async for raw_message in websocket:
+                                try:
+                                    json_message = json.loads(raw_message)
+                                except (TypeError, json.JSONDecodeError):
+                                    self.logger.warning('invalid message, content=%r', raw_message)
+                                    continue
+                                if len(self._connection_tasks) >= self.MAX_PENDING_TASKS:
+                                    await asyncio.wait(
+                                        self._connection_tasks,
+                                        return_when=asyncio.FIRST_COMPLETED,
+                                    )
+                                task = asyncio.create_task(self.background_task(json_message, websocket))
+                                self._connection_tasks.add(task)
+                                task.add_done_callback(self._connection_tasks.discard)
+                        finally:
+                            keepalive_task.cancel()
+                            await asyncio.gather(keepalive_task, return_exceptions=True)
+                            await self._cancel_connection_tasks()
+                            if self.websocket is websocket:
+                                self.websocket = None
+                except asyncio.exceptions.CancelledError:
+                    raise
+                except websockets.exceptions.ConnectionClosedError as e:
+                    self.logger.error('[start] network exception, error=%s', e)
+                    await self._wait_before_retry(10)
+                except Exception:
+                    self.logger.exception('unknown exception')
+                    await self._wait_before_retry(3)
+        finally:
+            await self._cancel_connection_tasks()
+            websocket = self.websocket
+            self.websocket = None
+            if websocket is not None:
+                await websocket.close()
+            self._runner_task = None
+            self._stop_event = None
+
+    async def stop(self):
+        """Stop reconnecting and close the currently active websocket."""
+        if self._stop_event is not None:
+            self._stop_event.set()
+        websocket = self.websocket
+        if websocket is not None:
+            await websocket.close()
+
+    async def _wait_before_retry(self, delay):
+        if self._stop_event is None or self._stop_event.is_set():
+            return
+        try:
+            await asyncio.wait_for(self._stop_event.wait(), timeout=delay)
+        except asyncio.TimeoutError:
+            pass
+
+    async def _cancel_connection_tasks(self):
+        tasks = list(self._connection_tasks)
+        self._connection_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def keepalive(self, ws, ping_interval=60):
         while True:
@@ -99,15 +158,19 @@ class DingTalkStreamClient(object):
             except websockets.exceptions.ConnectionClosed:
                 break
 
-    async def background_task(self, json_message):
+    async def background_task(self, json_message, websocket=None):
+        target_websocket = websocket if websocket is not None else self.websocket
         try:
-            route_result = await self.route_message(json_message)
-            if route_result == DingTalkStreamClient.TAG_DISCONNECT:
-                await self.websocket.close()
-        except Exception as e:
-            self.logger.error(f"error processing message: {e}")
+            route_result = await self.route_message(json_message, target_websocket)
+            if route_result == DingTalkStreamClient.TAG_DISCONNECT and target_websocket is not None:
+                await target_websocket.close()
+        except asyncio.exceptions.CancelledError:
+            raise
+        except Exception:
+            self.logger.exception('error processing message')
 
-    async def route_message(self, json_message):
+    async def route_message(self, json_message, websocket=None):
+        target_websocket = websocket if websocket is not None else self.websocket
         result = ''
         msg_type = json_message.get('type', '')
         ack = None
@@ -132,18 +195,15 @@ class DingTalkStreamClient(object):
                                     json_message)
         else:
             self.logger.warning('unknown message, content=%s', json_message)
-        if ack:
-            await self.websocket.send(json.dumps(ack.to_dict()))
+        if ack and target_websocket is not None:
+            await target_websocket.send(json.dumps(ack.to_dict()))
         return result
 
     def start_forever(self):
-        while True:
-            try:
-                asyncio.run(self.start())
-            except KeyboardInterrupt as e:
-                break
-            finally:
-                time.sleep(3)
+        try:
+            asyncio.run(self.start())
+        except KeyboardInterrupt:
+            pass
 
     def open_connection(self):
         self.logger.info('open connection, url=%s' % DingTalkStreamClient.OPEN_CONNECTION_API)
@@ -171,7 +231,8 @@ class DingTalkStreamClient(object):
             response_text = ''
             response = requests.post(DingTalkStreamClient.OPEN_CONNECTION_API,
                                      headers=request_headers,
-                                     data=request_body)
+                                     data=request_body,
+                                     timeout=self.HTTP_TIMEOUT_SECONDS)
             response_text = response.text
             
             response.raise_for_status()
@@ -185,13 +246,12 @@ class DingTalkStreamClient(object):
         查询本机ip地址
         :return: ip
         """
-        ip = ""
+        ip = ''
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(('8.8.8.8', 80))
-            ip = s.getsockname()[0]
-        finally:
-            s.close()
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.connect(('8.8.8.8', 80))
+                return sock.getsockname()[0]
+        except OSError:
             return ip
 
     def reset_access_token(self):
@@ -216,7 +276,8 @@ class DingTalkStreamClient(object):
             response_text = ''
             response = requests.post(url,
                                      headers=request_headers,
-                                     data=json.dumps(values))
+                                     data=json.dumps(values),
+                                     timeout=self.HTTP_TIMEOUT_SECONDS)
             response_text = response.text
             
             response.raise_for_status()
@@ -243,7 +304,10 @@ class DingTalkStreamClient(object):
         upload_url = f'https://oapi.dingtalk.com/media/upload?access_token={quote_plus(access_token)}'
         try:
             response_text = ''
-            response = requests.post(upload_url, data=values, files=files)
+            response = requests.post(upload_url,
+                                     data=values,
+                                     files=files,
+                                     timeout=self.HTTP_TIMEOUT_SECONDS)
             response_text = response.text
             if response.status_code == 401:
                 self.reset_access_token()
