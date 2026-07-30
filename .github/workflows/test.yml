@@ -1,0 +1,52 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        python:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
+        include:
+          - os: windows-latest
+            python: '3.10'
+          - os: windows-latest
+            python: '3.14'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: setup.py
+
+      - name: Install
+        run: python -m pip install --editable .
+
+      - name: Test
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile package and examples
+        run: python -m compileall -q dingtalk_stream tests examples
