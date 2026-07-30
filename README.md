@@ -68,7 +68,12 @@ class CalcBotHandler(dingtalk_stream.ChatbotHandler):
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
         expression = incoming_message.text.content.strip()
         try:
-            result = eval(expression)
+            operands = [float(part.strip()) for part in expression.split('+')]
+            if len(operands) < 2:
+                raise ValueError('only addition expressions are supported')
+            result = sum(operands)
+            if result.is_integer():
+                result = int(result)
         except Exception as e:
             result = 'Error: %s' % e
         self.logger.info('%s = %s' % (expression, result))
@@ -97,14 +102,29 @@ if __name__ == '__main__':
 
 有的时候，你需要在已有的 ioloop 中使用钉钉 Stream 模式，不使用 `start_forever` 方法。
 
-此时，可以使用 `client.start()` 代替 `client.start_forever()`。注意：需要在网络异常后重新启动
+此时，可以使用 `client.start()` 代替 `client.start_forever()`。`start()` 会在网络异常后自动重连，
+调用 `stop()` 可以中断重连等待并关闭当前连接：
 
 ```Python
+client_task = asyncio.create_task(client.start())
 try:
-    await client.start()
-except (asyncio.exceptions.CancelledError,
-        websockets.exceptions.ConnectionClosedError) as e:
-    ... # 处理网络断线异常
+    await run_application()
+finally:
+    await client.stop()
+    await client_task
+```
+
+可以通过 `websocket_connect_options` 透传 `websockets.connect()` 参数，例如调整握手和心跳超时：
+
+```Python
+client = dingtalk_stream.DingTalkStreamClient(
+    credential,
+    websocket_connect_options={
+        'open_timeout': 10,
+        'ping_interval': 20,
+        'ping_timeout': 20,
+    },
+)
 ```
 
 ## 开发教程

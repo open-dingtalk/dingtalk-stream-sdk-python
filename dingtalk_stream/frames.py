@@ -170,25 +170,6 @@ class SystemMessage(object):
         self.data = {}
         self.extensions = {}
 
-        @classmethod
-        def from_dict(cls, d):
-            msg = SystemMessage()
-            data = ''
-            for name, value in d.items():
-                if name == 'specVersion':
-                    msg.spec_version = value
-                elif name == 'data':
-                    data = value
-                elif name == 'type':
-                    pass
-                elif name == 'headers':
-                    msg.headers = Headers.from_dict(value)
-                else:
-                    msg.extensions[name] = value
-            if data:
-                msg.data = json.loads(data)
-            return msg
-
     def __str__(self):
         return 'SystemMessage(spec_version=%s, type=%s, headers=%s, data=%s, extensions=%s)' % (
             self.spec_version,

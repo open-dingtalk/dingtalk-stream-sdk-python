@@ -39,7 +39,12 @@ class CalcBotHandler(dingtalk_stream.ChatbotHandler):
         incoming_message = dingtalk_stream.ChatbotMessage.from_dict(callback.data)
         expression = incoming_message.text.content.strip()
         try:
-            result = eval(expression)
+            operands = [float(part.strip()) for part in expression.split('+')]
+            if len(operands) < 2:
+                raise ValueError('only addition expressions are supported')
+            result = sum(operands)
+            if result.is_integer():
+                result = int(result)
         except Exception as e:
             result = 'Error: %s' % e
         self.logger.info('%s = %s' % (expression, result))

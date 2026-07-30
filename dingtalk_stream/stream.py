@@ -2,9 +2,11 @@
 
 import asyncio
 import asyncio.exceptions
+from collections import OrderedDict
 import json
 import logging
 import platform
+import random
 import time
 import requests
 import socket
@@ -19,6 +21,7 @@ from .handlers import SystemHandler
 from .frames import SystemMessage
 from .frames import EventMessage
 from .frames import CallbackMessage
+from .frames import AckMessage
 from .log import setup_default_logger
 from .utils import DINGTALK_OPENAPI_ENDPOINT
 from .version import VERSION_STRING
@@ -29,8 +32,18 @@ class DingTalkStreamClient(object):
     TAG_DISCONNECT = 'disconnect'
     HTTP_TIMEOUT_SECONDS = 10
     MAX_PENDING_TASKS = 100
+    TASK_CANCELLATION_TIMEOUT_SECONDS = 5
+    MAX_CACHED_MESSAGE_RESULTS = 10000
+    MESSAGE_RESULT_TTL_SECONDS = 5 * 60
+    RECONNECT_BASE_DELAY_SECONDS = 1
+    RECONNECT_MAX_DELAY_SECONDS = 60
+    RECONNECT_JITTER_SECONDS = 1
 
-    def __init__(self, credential: Credential, logger: logging.Logger = None):
+    def __init__(
+            self,
+            credential: Credential,
+            logger: logging.Logger = None,
+            websocket_connect_options=None):
         self.credential: Credential = credential
         self.event_handler: EventHandler = EventHandler()
         self.callback_handler_map = {}
@@ -43,6 +56,12 @@ class DingTalkStreamClient(object):
         self._runner_task = None
         self._stop_event = None
         self._connection_tasks = set()
+        self._orphaned_tasks = set()
+        self._inflight_messages = {}
+        self._message_results = OrderedDict()
+        self.websocket_connect_options = dict(
+            websocket_connect_options or {},
+        )
 
     def register_all_event_handler(self, handler: EventHandler):
         handler.dingtalk_client = self
@@ -70,6 +89,7 @@ class DingTalkStreamClient(object):
 
         self._runner_task = current_task
         self._stop_event = asyncio.Event()
+        reconnect_attempt = 0
         try:
             while not self._stop_event.is_set():
                 try:
@@ -80,26 +100,32 @@ class DingTalkStreamClient(object):
                         break
                     if not connection:
                         self.logger.error('open connection failed')
-                        await self._wait_before_retry(10)
+                        await self._wait_before_retry(
+                            self._reconnect_delay(reconnect_attempt),
+                        )
+                        reconnect_attempt += 1
                         continue
                     self.logger.info('connecting to endpoint %s', connection['endpoint'])
 
                     uri = f'{connection["endpoint"]}?ticket={quote_plus(connection["ticket"])}'
-                    async with websockets.connect(uri) as websocket:
+                    async with websockets.connect(
+                            uri,
+                            **self.websocket_connect_options) as websocket:
                         self.websocket = websocket
                         keepalive_task = asyncio.create_task(self.keepalive(websocket))
                         try:
                             async for raw_message in websocket:
+                                # Receiving any server frame proves that this
+                                # connection is healthy; future reconnects
+                                # start from the base delay again.
+                                reconnect_attempt = 0
                                 try:
                                     json_message = json.loads(raw_message)
                                 except (TypeError, json.JSONDecodeError):
                                     self.logger.warning('invalid message, content=%r', raw_message)
                                     continue
-                                if len(self._connection_tasks) >= self.MAX_PENDING_TASKS:
-                                    await asyncio.wait(
-                                        self._connection_tasks,
-                                        return_when=asyncio.FIRST_COMPLETED,
-                                    )
+                                if not await self._wait_for_task_capacity():
+                                    break
                                 task = asyncio.create_task(self.background_task(json_message, websocket))
                                 self._connection_tasks.add(task)
                                 task.add_done_callback(self._connection_tasks.discard)
@@ -109,14 +135,25 @@ class DingTalkStreamClient(object):
                             await self._cancel_connection_tasks()
                             if self.websocket is websocket:
                                 self.websocket = None
+                    if not self._stop_event.is_set():
+                        await self._wait_before_retry(
+                            self._reconnect_delay(reconnect_attempt),
+                        )
+                        reconnect_attempt += 1
                 except asyncio.exceptions.CancelledError:
                     raise
                 except websockets.exceptions.ConnectionClosedError as e:
                     self.logger.error('[start] network exception, error=%s', e)
-                    await self._wait_before_retry(10)
+                    await self._wait_before_retry(
+                        self._reconnect_delay(reconnect_attempt),
+                    )
+                    reconnect_attempt += 1
                 except Exception:
                     self.logger.exception('unknown exception')
-                    await self._wait_before_retry(3)
+                    await self._wait_before_retry(
+                        self._reconnect_delay(reconnect_attempt),
+                    )
+                    reconnect_attempt += 1
         finally:
             await self._cancel_connection_tasks()
             websocket = self.websocket
@@ -142,13 +179,54 @@ class DingTalkStreamClient(object):
         except asyncio.TimeoutError:
             pass
 
+    def _reconnect_delay(self, attempt):
+        exponential_delay = (
+            self.RECONNECT_BASE_DELAY_SECONDS * (2 ** min(attempt, 16))
+        )
+        jitter = random.uniform(0, self.RECONNECT_JITTER_SECONDS)
+        return min(
+            exponential_delay + jitter,
+            self.RECONNECT_MAX_DELAY_SECONDS,
+        )
+
     async def _cancel_connection_tasks(self):
         tasks = list(self._connection_tasks)
         self._connection_tasks.clear()
         for task in tasks:
             task.cancel()
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            _, pending = await asyncio.wait(
+                tasks,
+                timeout=self.TASK_CANCELLATION_TIMEOUT_SECONDS,
+            )
+            if pending:
+                self.logger.warning(
+                    '%d background task(s) ignored cancellation; '
+                    'they remain counted against the global task limit',
+                    len(pending),
+                )
+                self._orphaned_tasks.update(pending)
+                for task in pending:
+                    task.add_done_callback(self._orphaned_tasks.discard)
+
+    async def _wait_for_task_capacity(self):
+        pending_tasks = self._connection_tasks | self._orphaned_tasks
+        while len(pending_tasks) >= self.MAX_PENDING_TASKS:
+            stop_event = self._stop_event
+            if stop_event is None or stop_event.is_set():
+                return False
+
+            stop_waiter = asyncio.create_task(stop_event.wait())
+            try:
+                await asyncio.wait(
+                    [*pending_tasks, stop_waiter],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            finally:
+                stop_waiter.cancel()
+                await asyncio.gather(stop_waiter, return_exceptions=True)
+            pending_tasks = self._connection_tasks | self._orphaned_tasks
+        return self._stop_event is not None and not self._stop_event.is_set()
 
     async def keepalive(self, ws, ping_interval=60):
         while True:
@@ -161,16 +239,70 @@ class DingTalkStreamClient(object):
     async def background_task(self, json_message, websocket=None):
         target_websocket = websocket if websocket is not None else self.websocket
         try:
-            route_result = await self.route_message(json_message, target_websocket)
-            if route_result == DingTalkStreamClient.TAG_DISCONNECT and target_websocket is not None:
-                await target_websocket.close()
+            await self._background_task(json_message, target_websocket)
         except asyncio.exceptions.CancelledError:
             raise
         except Exception:
             self.logger.exception('error processing message')
 
+    async def _background_task(self, json_message, target_websocket):
+        message_type = json_message.get('type', '')
+        if message_type in (EventMessage.TYPE, CallbackMessage.TYPE):
+            message_id = json_message.get('headers', {}).get('messageId')
+        else:
+            # SYSTEM commands belong to one connection lifecycle. Replaying a
+            # cached disconnect result on a replacement connection could close
+            # the healthy socket, so control frames must always be processed.
+            message_id = None
+        if not message_id:
+            route_result, ack = await self._dispatch_message(json_message)
+            await self._send_ack(ack, target_websocket)
+            if route_result == DingTalkStreamClient.TAG_DISCONNECT and target_websocket is not None:
+                await target_websocket.close()
+            return
+
+        cached = self._get_cached_message_result(message_id)
+        if cached is not None:
+            route_result, ack = cached
+            await self._send_ack(ack, target_websocket)
+            if route_result == DingTalkStreamClient.TAG_DISCONNECT and target_websocket is not None:
+                await target_websocket.close()
+            return
+
+        inflight = self._inflight_messages.get(message_id)
+        if inflight is not None:
+            route_result, ack = await asyncio.shield(inflight)
+            await self._send_ack(ack, target_websocket)
+            if route_result == DingTalkStreamClient.TAG_DISCONNECT and target_websocket is not None:
+                await target_websocket.close()
+            return
+
+        loop = asyncio.get_running_loop()
+        result_future = loop.create_future()
+        self._inflight_messages[message_id] = result_future
+        try:
+            route_result, ack = await self._dispatch_message(json_message)
+            if ack is not None and ack.code == AckMessage.STATUS_OK:
+                self._cache_message_result(message_id, route_result, ack)
+            result_future.set_result((route_result, ack))
+            await self._send_ack(ack, target_websocket)
+            if route_result == DingTalkStreamClient.TAG_DISCONNECT and target_websocket is not None:
+                await target_websocket.close()
+        except BaseException:
+            if not result_future.done():
+                result_future.cancel()
+            raise
+        finally:
+            if self._inflight_messages.get(message_id) is result_future:
+                self._inflight_messages.pop(message_id, None)
+
     async def route_message(self, json_message, websocket=None):
         target_websocket = websocket if websocket is not None else self.websocket
+        result, ack = await self._dispatch_message(json_message)
+        await self._send_ack(ack, target_websocket)
+        return result
+
+    async def _dispatch_message(self, json_message):
         result = ''
         msg_type = json_message.get('type', '')
         ack = None
@@ -180,8 +312,6 @@ class DingTalkStreamClient(object):
             if msg.headers.topic == SystemMessage.TOPIC_DISCONNECT:
                 result = DingTalkStreamClient.TAG_DISCONNECT
                 self.logger.info("received disconnect topic=%s, message=%s", msg.headers.topic, json_message)
-            else:
-                self.logger.warning("unknown message topic, topic=%s, message=%s", msg.headers.topic, json_message)
         elif msg_type == EventMessage.TYPE:
             msg = EventMessage.from_dict(json_message)
             ack = await self.event_handler.raw_process(msg)
@@ -195,9 +325,28 @@ class DingTalkStreamClient(object):
                                     json_message)
         else:
             self.logger.warning('unknown message, content=%s', json_message)
+        return result, ack
+
+    async def _send_ack(self, ack, target_websocket):
         if ack and target_websocket is not None:
             await target_websocket.send(json.dumps(ack.to_dict()))
-        return result
+
+    def _get_cached_message_result(self, message_id):
+        cached = self._message_results.get(message_id)
+        if cached is None:
+            return None
+        cached_at, route_result, ack = cached
+        if time.monotonic() - cached_at > self.MESSAGE_RESULT_TTL_SECONDS:
+            self._message_results.pop(message_id, None)
+            return None
+        self._message_results.move_to_end(message_id)
+        return route_result, ack
+
+    def _cache_message_result(self, message_id, route_result, ack):
+        self._message_results[message_id] = (time.monotonic(), route_result, ack)
+        self._message_results.move_to_end(message_id)
+        while len(self._message_results) > self.MAX_CACHED_MESSAGE_RESULTS:
+            self._message_results.popitem(last=False)
 
     def start_forever(self):
         try:
