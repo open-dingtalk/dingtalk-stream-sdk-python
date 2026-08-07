@@ -89,6 +89,99 @@ class ImageContent(object):
         if self.download_code is not None:
             result['downloadCode'] = self.download_code
         return result
+    
+class FileContent(object):
+
+    def __init__(self):
+        self.download_code = None
+        self.file_name = None
+        self.extensions = {}
+
+    @classmethod
+    def from_dict(cls, d):
+        content = FileContent()
+        for name, value in d.items():
+            if name == 'downloadCode':
+                content.download_code = value
+            elif name == 'fileName':
+                content.file_name = value
+            else:
+                content.extensions[name] = value
+        return content
+
+    def to_dict(self):
+        result = self.extensions.copy()
+        if self.download_code is not None:
+            result['downloadCode'] = self.download_code
+        if self.file_name is not None:
+            result['fileName'] = self.file_name
+        return result
+
+
+class AudioContent(object):
+
+    def __init__(self):
+        self.download_code = None
+        self.recognition = None
+        self.duration = None
+        self.extensions = {}
+
+    @classmethod
+    def from_dict(cls, d):
+        content = AudioContent()
+        for name, value in d.items():
+            if name == 'downloadCode':
+                content.download_code = value
+            elif name == 'recognition':
+                content.recognition = value
+            elif name == 'duration':
+                content.duration = value
+            else:
+                content.extensions[name] = value
+        return content
+
+    def to_dict(self):
+        result = self.extensions.copy()
+        if self.download_code is not None:
+            result['downloadCode'] = self.download_code
+        if self.recognition is not None:
+            result['recognition'] = self.recognition
+        if self.duration is not None:
+            result['duration'] = self.duration
+        return result
+
+
+class VideoContent(object):
+
+    def __init__(self):
+        self.download_code = None
+        self.video_type = None
+        self.duration = None
+        self.extensions = {}
+
+    @classmethod
+    def from_dict(cls, d):
+        content = VideoContent()
+        for name, value in d.items():
+            if name == 'downloadCode':
+                content.download_code = value
+            elif name == 'videoType':
+                content.video_type = value
+            elif name == 'duration':
+                content.duration = value
+            else:
+                content.extensions[name] = value
+        return content
+
+    def to_dict(self):
+        result = self.extensions.copy()
+        if self.download_code is not None:
+            result['downloadCode'] = self.download_code
+        if self.video_type is not None:
+            result['videoType'] = self.video_type
+        if self.duration is not None:
+            result['duration'] = self.duration
+        return result
 
 
 class RichTextContent(object):
@@ -181,6 +274,9 @@ class ChatbotMessage(object):
         self.message_type = None
         self.image_content = None
         self.rich_text_content = None
+        self.file_content = None
+        self.audio_content = None
+        self.video_content = None
         self.sender_staff_id = None
         self.hosting_context: HostingContext = None
         self.conversation_msg_context = None
@@ -232,6 +328,12 @@ class ChatbotMessage(object):
                     msg.image_content = ImageContent.from_dict(d['content'])
                 elif value == 'richText':
                     msg.rich_text_content = RichTextContent.from_dict(d['content'])
+                elif value == "file":
+                    msg.file_content = FileContent.from_dict(d['content'])
+                elif value == "audio":
+                    msg.audio_content = AudioContent.from_dict(d['content'])
+                elif value == "video":
+                    msg.video_content = VideoContent.from_dict(d['content'])
             elif name == 'senderStaffId':
                 msg.sender_staff_id = value
             elif name == 'hostingContext':
@@ -281,6 +383,12 @@ class ChatbotMessage(object):
             result['content'] = self.image_content.to_dict()
         if self.rich_text_content is not None:
             result['content'] = self.rich_text_content.to_dict()
+        if self.file_content is not None:
+            result['content'] = self.file_content.to_dict()
+        if self.audio_content is not None:
+            result['content'] = self.audio_content.to_dict()
+        if self.video_content is not None:
+            result['content'] = self.video_content.to_dict()
         if self.conversation_type is not None:
             result['conversationType'] = self.conversation_type
         if self.at_users is not None:
@@ -322,6 +430,27 @@ class ChatbotMessage(object):
                     images.append(item['downloadCode'])
 
             return images
+
+    def get_file_list(self):
+        if self.message_type != 'file':
+            return None
+        if self.file_content is None or self.file_content.download_code is None:
+            return None
+        return [self.file_content.download_code]
+
+    def get_audio_list(self):
+        if self.message_type != 'audio':
+            return None
+        if self.audio_content is None or self.audio_content.download_code is None:
+            return None
+        return [self.audio_content.download_code]
+
+    def get_video_list(self):
+        if self.message_type != 'video':
+            return None
+        if self.video_content is None or self.video_content.download_code is None:
+            return None
+        return [self.video_content.download_code]
 
     def __str__(self):
         return 'ChatbotMessage(message_type=%s, text=%s, sender_nick=%s, conversation_title=%s)' % (
@@ -563,6 +692,14 @@ class ChatbotHandler(CallbackHandler):
             self.logger.error(f'get_image_download_url, error={e}, response.text={response_text}')
             return ""
         return response.json()["downloadUrl"]
+
+    def get_file_download_url(self, download_code: str) -> str:
+        """
+        根据downloadCode获取文件下载链接 https://open.dingtalk.com/document/isvapp/download-the-file-content-of-the-robot-receiving-message
+        :param download_code:
+        :return:
+        """
+        return self.get_image_download_url(download_code)
 
     def set_off_duty_prompt(self, text: str, title: str = "", logo: str = ""):
         """
